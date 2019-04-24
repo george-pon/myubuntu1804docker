@@ -143,7 +143,7 @@ function f-version-convert() {
 }
 
 # kubernetes 1.10, 1.11ならcarry-on-kubeconfigする必要がある
-# kubernetes 1.13ならcarry-on-kubeconfigしなくて良い
+# kubernetes 1.13.4ならcarry-on-kubeconfigしなくて良い可能性がある
 function f-check-kubeconfig-carry-on() {
     export KUBE_SERV_VERSION=$( f-kubernetes-server-version )
     if [ -z "$KUBE_SERV_VERSION" ]; then
@@ -366,6 +366,11 @@ function f-kube-run-v() {
         fi
         if [ x"$1"x = x"--image-debian"x ]; then
             image=registry.gitlab.com/george-pon/mydebian9docker:latest
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--image-ubuntu"x ]; then
+            image=georgesan/myubuntu1804docker:latest
             shift
             continue
         fi
