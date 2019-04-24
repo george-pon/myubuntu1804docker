@@ -16,7 +16,11 @@ ENV LANG ja_JP.utf8
 RUN ln -fs /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
 ENV TZ Asia/Tokyo
 
-# install man pages
+# Do not exclude man pages & other documentation
+RUN rm /etc/dpkg/dpkg.cfg.d/excludes
+
+# re-install packages
+RUN dpkg -l | grep ^ii | cut -d' ' -f3 | xargs apt-get install -y --reinstall
 RUN apt-get install -y man-db  manpages && apt-get clean
 
 # install etc utils
