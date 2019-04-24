@@ -416,6 +416,7 @@ function f-kube-run-v() {
             echo "    -n, --namespace  namespace        set kubectl run namespace"
             echo "        --image  image-name           set kubectl run image name. default is $image "
             echo "        --image-centos                set image to georgesan/mycentos7docker:latest (default)"
+            echo "        --image-ubuntu                set image to georgesan/myubuntu1804docker:latest (default)"
             echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian9docker:latest"
             echo "        --carry-on-kubeconfig         carry on kubeconfig file into pod"
             echo "        --docker-pull                 docker pull image before kubectl run"
