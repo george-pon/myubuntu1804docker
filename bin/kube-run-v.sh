@@ -119,9 +119,11 @@ function f-check-and-run-recover-sh() {
     done
 }
 
+
 # kubernetes server version文字列(1.11.6)をechoする
+# k3s環境だと1.14.1-k3s.4なので、-k3s.4の部分はカットする
 function f-kubernetes-server-version() {
-    local RESULT=$( kubectl version | grep "Server Version" | sed -e 's/^.*GitVersion://g' -e 's/, GitCommit.*$//g' -e 's/"//g' -e 's/^v//g' )
+    local RESULT=$( kubectl version | grep "Server Version" | sed -e 's/^.*GitVersion://g' -e 's/, GitCommit.*$//g' -e 's/"//g' -e 's/^v//g' -e 's/-.*$//g' )
     echo $RESULT
 }
 
