@@ -2,6 +2,8 @@
 #
 #  helm client 側のセットアップを行う
 #
+#  helm server のバージョンに合わせて helm client をインストールする
+#
 # 2019.03.04
 #
 
