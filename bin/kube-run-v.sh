@@ -238,6 +238,7 @@ function f-kube-run-v() {
     local pseudo_workdir=/$( basename $PWD )
     local pseudo_profile=
     local volume_carry_out=true
+    local image_pull_secrets_opt=
     f-check-winpty 2>/dev/null
 
     # environment variables
@@ -413,6 +414,12 @@ function f-kube-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--image-pull-secrets"x ]; then
+            image_pull_secrets_opt=" --overrides ' { "apiVersion": "v1" , "spec" : { "imagePullSecrets" : [ { "name" : "'abc'" } ] } }  ' "
+            shift
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--help"x ]; then
             echo "kube-run-v"
             echo "    -n, --namespace  namespace        set kubectl run namespace"
@@ -423,6 +430,7 @@ function f-kube-run-v() {
             echo "        --carry-on-kubeconfig         carry on kubeconfig file into pod"
             echo "        --docker-pull                 docker pull image before kubectl run"
             echo "        --pull                        always pull image"
+            echo "        --image-pull-secrets          image pull secrets name"
             echo "        --add-host host:ip            add a custom host-to-IP to /etc/hosts"
             echo "        --name pod-name               set pod name prefix. default: taken from image name"
             echo "    -e, --env key=value               set environment variables"
@@ -527,6 +535,7 @@ function f-kube-run-v() {
         kubectl run ${POD_NAME} --restart=Never \
             --image=$image \
             $imagePullOpt \
+            $image_pull_secrets_opt \
             --serviceaccount=mycentos7docker-${namespace} \
             ${kubectl_cmd_namespace_opt} \
             --env="http_proxy=${http_proxy}" --env="https_proxy=${https_proxy}" --env="no_proxy=${no_proxy}" \

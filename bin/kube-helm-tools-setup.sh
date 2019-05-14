@@ -50,8 +50,6 @@ function f-path-add() {
     fi
 }
 
-f-path-add  /usr/local/bin
-
 
 
 
@@ -133,14 +131,6 @@ EOF
 kubectl apply -f cloud-generic-my.yaml
 # kubectl delete -f cloud-generic-my.yaml
 }
-
-
-
-
-#
-#  helm client 初期化
-#
-/usr/local/bin/kube-helm-client-init.sh
 
 
 
@@ -280,7 +270,6 @@ fi
 
 #
 # growi
-#  あれ？なぜか動かなくなった？？
 #
 function f-helm-growi() {
 if true; then
