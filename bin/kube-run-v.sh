@@ -503,7 +503,7 @@ function f-kube-run-v() {
     # carry_on_kubeconfig
     if [ -z "$carry_on_kubeconfig" ]; then
         # automatic detect
-        local kubectl_current_context=$( kubectl config current-context )
+        local kubectl_current_context=$( kubectl config current-context 2>/dev/null )
         if [ x"$kubectl_current_context"x = x"docker-for-desktop"x ]; then
             carry_on_kubeconfig=no
         else
@@ -544,7 +544,7 @@ function f-kube-run-v() {
     if  kubectl ${kubectl_cmd_namespace_opt} get pod/${POD_NAME} > /dev/null 2>&1 ; then
         echo "  already running pod/${POD_NAME}"
     else
-        if true ; then
+        if false ; then
             # dry run
             echo "  "
             echo "  ### dry-run : Pod yaml info start"
@@ -605,6 +605,7 @@ function f-kube-run-v() {
     local TMP_DEST_MSYS2=$( echo $TMP_DEST_FILE | sed -e 's%:\.\./%:%g' )
     local TMP_ARC_DIR=$( echo $TMP_ARC_FILE | sed -e 's%.tar.gz%%g' )
     local TMP_ARC_DIR_FILE=${TMP_ARC_DIR}/$( echo $TMP_ARC_FILE | sed -e 's%^../%%g' )
+    local TMP_ARC_FILE_CURRENT_DIR=$( echo $TMP_ARC_FILE | sed -e 's%^../%%g' )
 
     # pseudo volume bind
     if [ ! -z "$pseudo_volume_bind" ]; then
@@ -730,9 +731,16 @@ function f-kube-run-v() {
                 # kubectl cp get archive file
                 echo "/bin/rm -f $TMP_ARC_FILE"  >> ${TMP_ARC_FILE_RECOVER}
                 echo "mkdir -p $TMP_ARC_DIR"  >> ${TMP_ARC_FILE_RECOVER}
-                echo "kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  ${TMP_ARC_DIR}"  >> ${TMP_ARC_FILE_RECOVER}
-                echo "/bin/mv ${TMP_ARC_DIR_FILE} $TMP_ARC_FILE"  >> ${TMP_ARC_FILE_RECOVER}
-                echo "/bin/rmdir $TMP_ARC_DIR"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "if kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  ${TMP_ARC_DIR} ; then"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "    /bin/mv ${TMP_ARC_DIR_FILE} $TMP_ARC_FILE"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "    /bin/rmdir $TMP_ARC_DIR"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "elif kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  ${TMP_ARC_FILE_CURRENT_DIR} ; then"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "    /bin/mv ${TMP_ARC_FILE_CURRENT_DIR} $TMP_ARC_FILE"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "    /bin/rmdir $TMP_ARC_DIR"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "else"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "    echo kubectl cp error."  >> ${TMP_ARC_FILE_RECOVER}
+                echo "    exit 1"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "fi"  >> ${TMP_ARC_FILE_RECOVER}
 
                 # if rsync is present, use rsync
                 if [ x"$RSYNC_MODE"x = x"true"x ]; then
@@ -827,10 +835,21 @@ function f-kube-run-v() {
                 echo "  kubectl cp from pod"
                 /bin/rm -f $TMP_ARC_FILE
                 mkdir -p $TMP_ARC_DIR
-                kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  ${TMP_ARC_DIR}
-                RC=$? ; if [ $RC -ne 0 ]; then echo "kubectl cp error. abort." ; return $RC; fi
-                /bin/mv ${TMP_ARC_DIR_FILE} $TMP_ARC_FILE
-                /bin/rmdir $TMP_ARC_DIR
+                # kubectl cp pod から ローカルへ。
+                # kubernetes 1.14.2 より前は、ローカル側はディレクトリしか指定できない
+                # kubernetes 1.14.2 以降は、コピー元がファイルなら、ローカル側もファイルを指定しないといけない
+                if echo "  trying directory mode ..." ; kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  ${TMP_ARC_DIR} ; then
+                    echo "  directory mode success."
+                    /bin/mv ${TMP_ARC_DIR_FILE} $TMP_ARC_FILE
+                    /bin/rmdir $TMP_ARC_DIR
+                elif echo "  trying file mode ..." ; kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  ${TMP_ARC_FILE_CURRENT_DIR} ; then
+                    echo "  file mode success."
+                    /bin/mv ${TMP_ARC_FILE_CURRENT_DIR} $TMP_ARC_FILE
+                    /bin/rmdir $TMP_ARC_DIR
+                else
+                    echo "kubectl cp error. abort."
+                    return 1
+                fi
 
                 # if rsync is present, use rsync
                 if [ x"$RSYNC_MODE"x = x"true"x ]; then
