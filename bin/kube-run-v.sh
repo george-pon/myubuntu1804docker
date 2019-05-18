@@ -239,6 +239,9 @@ function f-kube-run-v() {
     local pseudo_profile=
     local volume_carry_out=true
     local image_pull_secrets_opt=
+    local image_pull_secrets_json=
+    local node_select_opt=
+    local node_select_json=
     f-check-winpty 2>/dev/null
 
     # environment variables
@@ -415,7 +418,15 @@ function f-kube-run-v() {
             continue
         fi
         if [ x"$1"x = x"--image-pull-secrets"x ]; then
-            image_pull_secrets_opt=" --overrides ' { "apiVersion": "v1" , "spec" : { "imagePullSecrets" : [ { "name" : "'abc'" } ] } }  ' "
+            image_pull_secrets_opt=" --overrides "
+            image_pull_secrets_json=' { "apiVersion": "v1", "spec" : { "imagePullSecrets" : [ { "name" : "'$2'" } ] } } '
+            shift
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--node-selector"x ]; then
+            node_select_opt=" --overrides "
+            node_select_json=' { "apiVersion": "v1", "spec" : { "nodeSelector" : { "kubernetes.io/hostname" : "'$2'" } } } '
             shift
             shift
             continue
@@ -430,7 +441,8 @@ function f-kube-run-v() {
             echo "        --carry-on-kubeconfig         carry on kubeconfig file into pod"
             echo "        --docker-pull                 docker pull image before kubectl run"
             echo "        --pull                        always pull image"
-            echo "        --image-pull-secrets          image pull secrets name"
+            echo "        --image-pull-secrets name     image pull secrets name"
+            echo "        --node-selector nodename      set nodeSelector kubernetes.io/hostname label value"
             echo "        --add-host host:ip            add a custom host-to-IP to /etc/hosts"
             echo "        --name pod-name               set pod name prefix. default: taken from image name"
             echo "    -e, --env key=value               set environment variables"
@@ -532,10 +544,30 @@ function f-kube-run-v() {
     if  kubectl ${kubectl_cmd_namespace_opt} get pod/${POD_NAME} > /dev/null 2>&1 ; then
         echo "  already running pod/${POD_NAME}"
     else
+        if true ; then
+            # dry run
+            echo "  "
+            echo "  dry-run : Pod yaml info start"
+            kubectl run ${POD_NAME} --restart=Never \
+                --image=$image \
+                $imagePullOpt \
+                --overrides  "${image_pull_secrets_json}${node_select_json}" \
+                --serviceaccount=mycentos7docker-${namespace} \
+                ${kubectl_cmd_namespace_opt} \
+                --env="http_proxy=${http_proxy}" --env="https_proxy=${https_proxy}" --env="no_proxy=${no_proxy}" \
+                --env="DOCKER_HOST=${DOCKER_HOST}" \
+                ${env_opts} \
+                --dry-run -o yaml
+            RC=$? ; if [ $RC -ne 0 ]; then echo "kubectl dry-run error. abort." ; return $RC; fi
+            echo "  dry-run : Pod yaml info end"
+            echo "  "
+        fi
+
+        # run
         kubectl run ${POD_NAME} --restart=Never \
             --image=$image \
             $imagePullOpt \
-            $image_pull_secrets_opt \
+            --overrides  "${image_pull_secrets_json}${node_select_json}" \
             --serviceaccount=mycentos7docker-${namespace} \
             ${kubectl_cmd_namespace_opt} \
             --env="http_proxy=${http_proxy}" --env="https_proxy=${https_proxy}" --env="no_proxy=${no_proxy}" \
@@ -789,7 +821,7 @@ function f-kube-run-v() {
                 # kubectl cp get archive file
                 echo "  kubectl cp from pod"
                 /bin/rm -f $TMP_ARC_FILE
-                kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  ..
+                kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  ../
                 RC=$? ; if [ $RC -ne 0 ]; then echo "kubectl cp error. abort." ; return $RC; fi
 
                 # if rsync is present, use rsync
