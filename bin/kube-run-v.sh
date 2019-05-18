@@ -547,7 +547,7 @@ function f-kube-run-v() {
         if true ; then
             # dry run
             echo "  "
-            echo "  dry-run : Pod yaml info start"
+            echo "  ### dry-run : Pod yaml info start"
             kubectl run ${POD_NAME} --restart=Never \
                 --image=$image \
                 $imagePullOpt \
@@ -557,9 +557,9 @@ function f-kube-run-v() {
                 --env="http_proxy=${http_proxy}" --env="https_proxy=${https_proxy}" --env="no_proxy=${no_proxy}" \
                 --env="DOCKER_HOST=${DOCKER_HOST}" \
                 ${env_opts} \
-                --dry-run -o yaml
+                --dry-run -o yaml | awk '{print "  " $0;}'
             RC=$? ; if [ $RC -ne 0 ]; then echo "kubectl dry-run error. abort." ; return $RC; fi
-            echo "  dry-run : Pod yaml info end"
+            echo "  ### dry-run : Pod yaml info end"
             echo "  "
         fi
 
@@ -603,6 +603,8 @@ function f-kube-run-v() {
     local TMP_ARC_FILE_IN_POD=$( echo $TMP_ARC_FILE | sed -e 's%^\.\./%%g' )
     local TMP_DEST_FILE=${namespace}/${POD_NAME}:${TMP_ARC_FILE}
     local TMP_DEST_MSYS2=$( echo $TMP_DEST_FILE | sed -e 's%:\.\./%:%g' )
+    local TMP_ARC_DIR=$( echo $TMP_ARC_FILE | sed -e 's%.tar.gz%%g' )
+    local TMP_ARC_DIR_FILE=${TMP_ARC_DIR}/$( echo $TMP_ARC_FILE | sed -e 's%^../%%g' )
 
     # pseudo volume bind
     if [ ! -z "$pseudo_volume_bind" ]; then
@@ -726,8 +728,11 @@ function f-kube-run-v() {
                 fi
 
                 # kubectl cp get archive file
-                echo "/bin/rm -f $TMP_ARC_FILE" >> ${TMP_ARC_FILE_RECOVER}
-                echo "kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  .." >> ${TMP_ARC_FILE_RECOVER}
+                echo "/bin/rm -f $TMP_ARC_FILE"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "mkdir -p $TMP_ARC_DIR"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  ${TMP_ARC_DIR}"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "/bin/mv ${TMP_ARC_DIR_FILE} $TMP_ARC_FILE"  >> ${TMP_ARC_FILE_RECOVER}
+                echo "/bin/rmdir $TMP_ARC_DIR"  >> ${TMP_ARC_FILE_RECOVER}
 
                 # if rsync is present, use rsync
                 if [ x"$RSYNC_MODE"x = x"true"x ]; then
@@ -821,8 +826,11 @@ function f-kube-run-v() {
                 # kubectl cp get archive file
                 echo "  kubectl cp from pod"
                 /bin/rm -f $TMP_ARC_FILE
-                kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  ../
+                mkdir -p $TMP_ARC_DIR
+                kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_DEST_MSYS2}  ${TMP_ARC_DIR}
                 RC=$? ; if [ $RC -ne 0 ]; then echo "kubectl cp error. abort." ; return $RC; fi
+                /bin/mv ${TMP_ARC_DIR_FILE} $TMP_ARC_FILE
+                /bin/rmdir $TMP_ARC_DIR
 
                 # if rsync is present, use rsync
                 if [ x"$RSYNC_MODE"x = x"true"x ]; then
