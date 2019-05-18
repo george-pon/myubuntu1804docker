@@ -37,8 +37,10 @@ RUN apt-get install -y \
         iproute2 \
         jq \
         make \
-        net-tools \
+        mongodb-clients \
         netcat \
+        net-tools \
+        postgresql-client \
         rsync \
         sudo \
         tcpdump \
