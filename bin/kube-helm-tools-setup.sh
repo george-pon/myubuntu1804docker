@@ -26,7 +26,10 @@ function f-download-kube-run-v-sh() {
     curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/docker-clean.sh
     chmod +x docker-clean.sh
     curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/kube-helm-tools-setup.sh
-    chmod +x docker-clean.sh
+    curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/curl-no-proxy.sh
+    chmod +x curl-no-proxy.sh
+    curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/download-my-shells.sh
+    chmod +x download-my-shells.sh
     popd
 }
 
