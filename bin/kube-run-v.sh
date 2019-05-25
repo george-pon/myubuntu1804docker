@@ -238,10 +238,9 @@ function f-kube-run-v() {
     local pseudo_workdir=/$( basename $PWD )
     local pseudo_profile=
     local volume_carry_out=true
-    local image_pull_secrets_opt=
     local image_pull_secrets_json=
-    local node_select_opt=
     local node_select_json=
+
     f-check-winpty 2>/dev/null
 
     # environment variables
@@ -418,15 +417,13 @@ function f-kube-run-v() {
             continue
         fi
         if [ x"$1"x = x"--image-pull-secrets"x ]; then
-            image_pull_secrets_opt=" --overrides "
-            image_pull_secrets_json=' { "apiVersion": "v1", "spec" : { "imagePullSecrets" : [ { "name" : "'$2'" } ] } } '
+            image_pull_secrets_json=' "imagePullSecrets" : [ { "name" : "'$2'" } ] '
             shift
             shift
             continue
         fi
         if [ x"$1"x = x"--node-selector"x ]; then
-            node_select_opt=" --overrides "
-            node_select_json=' { "apiVersion": "v1", "spec" : { "nodeSelector" : { "kubernetes.io/hostname" : "'$2'" } } } '
+            node_select_json=' "nodeSelector" : { "kubernetes.io/hostname" : "'$2'" } '
             shift
             shift
             continue
@@ -544,14 +541,26 @@ function f-kube-run-v() {
     if  kubectl ${kubectl_cmd_namespace_opt} get pod/${POD_NAME} > /dev/null 2>&1 ; then
         echo "  already running pod/${POD_NAME}"
     else
-        if false ; then
+        # generate override json
+        local override_base_json=
+        local override_sep=
+        if [ -z "$image_pull_secrets_json" -a -z "$node_select_json" ]; then
+            override_base_json=
+        elif [ -n "$image_pull_secrets_json" -a -n "$node_select_json" ] ; then
+            override_sep=","
+            override_base_json=' { "apiVersion": "v1", "spec" : { '"${image_pull_secrets_json}${override_sep}${node_select_json}"' } } '
+        else
+            override_base_json=' { "apiVersion": "v1", "spec" : { '"${image_pull_secrets_json}${node_select_json}"' } } '
+        fi
+
+        if true ; then
             # dry run
             echo "  "
             echo "  ### dry-run : Pod yaml info start"
             kubectl run ${POD_NAME} --restart=Never \
                 --image=$image \
                 $imagePullOpt \
-                --overrides  "${image_pull_secrets_json}${node_select_json}" \
+                --overrides  "${override_base_json}" \
                 --serviceaccount=mycentos7docker-${namespace} \
                 ${kubectl_cmd_namespace_opt} \
                 --env="http_proxy=${http_proxy}" --env="https_proxy=${https_proxy}" --env="no_proxy=${no_proxy}" \
@@ -567,7 +576,7 @@ function f-kube-run-v() {
         kubectl run ${POD_NAME} --restart=Never \
             --image=$image \
             $imagePullOpt \
-            --overrides  "${image_pull_secrets_json}${node_select_json}" \
+            --overrides  "${override_base_json}" \
             --serviceaccount=mycentos7docker-${namespace} \
             ${kubectl_cmd_namespace_opt} \
             --env="http_proxy=${http_proxy}" --env="https_proxy=${https_proxy}" --env="no_proxy=${no_proxy}" \
