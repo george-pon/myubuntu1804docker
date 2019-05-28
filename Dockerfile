@@ -36,6 +36,7 @@ RUN apt-get install -y \
         gnupg2 \
         iproute2 \
         jq \
+        lsof \
         make \
         mongodb-clients \
         netcat \
