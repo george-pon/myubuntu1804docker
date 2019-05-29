@@ -24,7 +24,7 @@ RUN dpkg -l | grep ^ii | cut -d' ' -f3 | xargs apt-get install -y --reinstall
 RUN apt-get install -y man-db  manpages && apt-get clean
 
 # install etc utils
-RUN apt-get install -y \
+RUN apt-get update && apt-get install -y --fix-missing \
         ansible \
         bash-completion \
         connect-proxy \
