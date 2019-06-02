@@ -1,6 +1,6 @@
-# mydebian9docker
+# myubuntu1804docker
 
-This image is my convinient environment on Debian 9 stretch
+This image is my convinient environment on Ubuntu 18.04 Bionic Beaver
 includes man pages, git, jq, ansible, bind-utils, kubectl CLI, docker CLI, helm, kustomize, envsubst, expect, gettext
 
 ## how to use
@@ -8,32 +8,32 @@ includes man pages, git, jq, ansible, bind-utils, kubectl CLI, docker CLI, helm,
 ### run via Docker
 
 ```
-function docker-run-mydebian9docker() {
+function docker-run-myubuntu1804docker() {
     ${WINPTY_CMD} docker run -i -t --rm \
         -e http_proxy=${http_proxy} -e https_proxy=${https_proxy} -e no_proxy="${no_proxy}" \
-        registry.gitlab.com/george-pon/mydebian9docker:latest
+        georgesan/myubuntu1804docker:latest
 }
-docker-run-mydebian9docker
+docker-run-myubuntu1804docker
 ```
 
 ### run via Kubernetes
 
 ```
-function kube-run-mydebian9docker() {
+function kube-run-myubuntu1804docker() {
     local tmp_no_proxy=$( echo $no_proxy | sed -e 's/,/\,/g' )
-    ${WINPTY_CMD} kubectl run mydebian9docker -i --tty \
-        --image=registry.gitlab.com/george-pon/mydebian9docker:latest --rm \
+    ${WINPTY_CMD} kubectl run myubuntu1804docker -i --tty \
+        --image=georgesan/myubuntu1804docker:latest --rm \
         --env="http_proxy=${http_proxy}" --env="https_proxy=${https_proxy}" --env="no_proxy=${tmp_no_proxy}"
 }
-kube-run-mydebian9docker
+kube-run-myubuntu1804docker
 ```
 
 ### run via Kubernetes with new service account
 
-This pod runs with service account mydebian9docker that has ClusterRoleBindings cluster-admin.
+This pod runs with service account myubuntu1804docker that has ClusterRoleBindings cluster-admin.
 
 ```
-function kube-run-mydebian9docker() {
+function kube-run-myubuntu1804docker() {
     local namespace=
     local tmp_no_proxy=$( echo $no_proxy | sed -e 's/,/\,/g' )
     while [ $# -gt 0 ]
@@ -50,30 +50,30 @@ function kube-run-mydebian9docker() {
         namespace=default
     fi
 
-    kubectl -n ${namespace} create serviceaccount mydebian9docker
+    kubectl -n ${namespace} create serviceaccount myubuntu1804docker
 
-    kubectl create clusterrolebinding mydebian9docker \
+    kubectl create clusterrolebinding myubuntu1804docker \
         --clusterrole cluster-admin \
-        --serviceaccount=${namespace}:mydebian9docker
+        --serviceaccount=${namespace}:myubuntu1804docker
 
-    ${WINPTY_CMD} kubectl run mydebian9docker -i --tty --image=registry.gitlab.com/george-pon/mydebian9docker:latest --rm \
-        --serviceaccount=mydebian9docker \
+    ${WINPTY_CMD} kubectl run myubuntu1804docker -i --tty --image=georgesan/myubuntu1804docker:latest --rm \
+        --serviceaccount=myubuntu1804docker \
         --namespace=${namespace} \
         --env="http_proxy=${http_proxy}" --env="https_proxy=${https_proxy}" --env="no_proxy=${tmp_no_proxy}"
 }
 
-kube-run-mydebian9docker -n default
+kube-run-myubuntu1804docker -n default
 ```
 
 
 ### run via kube-run-v.sh
 
-* https://gitlab.com/george-pon/mydebian9docker/raw/master/bin/kube-run-v.sh
+* https://gitlab.com/george-pon/myubuntu1804docker/raw/master/bin/kube-run-v.sh
 
 ```
 mkdir -p /home/george/podwork
 cd /home/george/podwork
-curl -LO https://gitlab.com/george-pon/mydebian9docker/raw/master/bin/kube-run-v.sh
+curl -LO https://gitlab.com/george-pon/myubuntu1804docker/raw/master/bin/kube-run-v.sh
 bash kube-run-v.sh --image-debian
 ```
 
@@ -142,12 +142,12 @@ bash build-image.sh
 ### local test memo via Docker
 
 ```
-function docker-run-mydebian9docker() {
+function docker-run-myubuntu1804docker() {
     ${WINPTY_CMD} docker run -i -t --rm \
         -e http_proxy=${http_proxy} -e https_proxy=${https_proxy} -e no_proxy="${no_proxy}" \
-        mydebian9docker:latest
+        myubuntu1804docker:latest
 }
-docker-run-mydebian9docker
+docker-run-myubuntu1804docker
 ```
 
 
