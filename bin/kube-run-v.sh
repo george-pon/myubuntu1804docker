@@ -379,6 +379,11 @@ function f-kube-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--image-alpine"x ]; then
+            image=registry.gitlab.com/george-pon/myalpine3docker:latest
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--docker-pull"x ]; then
             docker_pull=yes
             shift
@@ -433,8 +438,9 @@ function f-kube-run-v() {
             echo "    -n, --namespace  namespace        set kubectl run namespace"
             echo "        --image  image-name           set kubectl run image name. default is $image "
             echo "        --image-centos                set image to georgesan/mycentos7docker:latest (default)"
-            echo "        --image-ubuntu                set image to georgesan/myubuntu1804docker:latest (default)"
+            echo "        --image-ubuntu                set image to georgesan/myubuntu1804docker:latest"
             echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian9docker:latest"
+            echo "        --image-alpine                set image to registry.gitlab.com/george-pon/myalpine3docker:latest"
             echo "        --carry-on-kubeconfig         carry on kubeconfig file into pod"
             echo "        --docker-pull                 docker pull image before kubectl run"
             echo "        --pull                        always pull image"
