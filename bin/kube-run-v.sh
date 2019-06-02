@@ -325,10 +325,10 @@ function f-kube-run-v() {
             local env_val=${env_key_val#*=}
             if [ -z "$env_opts" ]; then
                 env_opts="--env $env_key=$env_val"
-                env_json=' , { "'$env_key'" : "'$env_val'" } '
+                env_json=' , { "name":  "'$env_key'" , "value": "'$env_val'" } '
             else
                 env_opts="$env_opts --env $env_key=$env_val"
-                env_json="$env_json"' , { "'$env_key'" : "'$env_val'" } '
+                env_json="$env_json"' , {  "name" : "'$env_key'" , "value" : "'$env_val'" } '
             fi
             shift
             shift
@@ -587,15 +587,19 @@ function f-kube-run-v() {
         fi
         # generate override json
         local override_base_json=
-        local override_sep1=,
-        local override_sep2=,
-        if [ -z "$image_pull_secrets_json" ]; then
-            override_sep1=
-        fi
-        if [ -z "$node_select_json" -a -z "$image_pull_secrets_json" ] ; then
-            override_sep2=
-        fi
-        override_base_json=' { "apiVersion": "v1", "spec" : { '"${image_pull_secrets_json}${override_sep1}${node_select_json}${override_sep2}${workingdir_json}"' } } '
+        local override_elem=
+        local override_buff=
+        for override_elem in "$image_pull_secrets_json" "$node_select_json" "$workingdir_json"
+        do
+            if [ -n "$override_elem" ]; then
+                if [ -z "$override_buff" ]; then
+                    override_buff="$override_elem"
+                else
+                    override_buff="${override_buff}, ${override_elem}"
+                fi
+            fi
+        done
+        override_base_json=' { "apiVersion": "v1", "spec" : { '"${override_buff}"' } } '
         if true ; then
             # dry run
             echo "  "
