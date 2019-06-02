@@ -222,8 +222,10 @@ function f-kube-run-v() {
     local pod_name_prefix=
     local pod_timeout=600
     local imagePullOpt=
+    local image_pull_policy_json="IfNotPresent"
     local command_line=
     local env_opts=
+    local env_json=
     local pseudo_volume_bind=true
     local pseudo_volume_list=
     local pseudo_volume_left=
@@ -236,6 +238,8 @@ function f-kube-run-v() {
     local carry_on_kubeconfig=
     local carry_on_kubeconfig_file=
     local pseudo_workdir=/$( basename $PWD )
+    local workingdir=
+    local workingdir_json=
     local pseudo_profile=
     local volume_carry_out=true
     local image_pull_secrets_json=
@@ -291,6 +295,18 @@ function f-kube-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"-w"x -o x"$1"x = x"--workingdir"x ]; then
+            workingdir=$2
+            if echo "$workingdir" | egrep -e '^/.*$' > /dev/null ; then 
+                echo "OK. workingdir is absolute path." > /dev/null
+            else
+                echo "OK. workingdir is NOT absolute path. abort."
+                return 1
+            fi
+            shift
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--source-profile"x ]; then
             pseudo_profile=$2
             if [ -r "$pseudo_profile" ] ; then 
@@ -309,8 +325,10 @@ function f-kube-run-v() {
             local env_val=${env_key_val#*=}
             if [ -z "$env_opts" ]; then
                 env_opts="--env $env_key=$env_val"
+                env_json=' , { "'$env_key'" : "'$env_val'" } '
             else
                 env_opts="$env_opts --env $env_key=$env_val"
+                env_json="$env_json"' , { "'$env_key'" : "'$env_val'" } '
             fi
             shift
             shift
@@ -418,6 +436,7 @@ function f-kube-run-v() {
         fi
         if [ x"$1"x = x"--pull"x ]; then
             imagePullOpt=" --image-pull-policy=Always "
+            image_pull_policy_json="Always"
             shift
             continue
         fi
@@ -456,6 +475,7 @@ function f-kube-run-v() {
             echo "    +v, ++volume                      stop automatic pseudo volume bind PWD to/from pod."
             echo "        --read-only                   carry on volume files into pod, but not carry out volume files from pod"
             echo "    -w, --workdir pathname            set pseudo working directory (must be absolute path name)"
+            echo "        --workingdir pathname         set workingDir to pod (must be absolute path name)"
             echo "        --source-profile file.sh      set pseudo profile shell name in workdir"
             echo ""
             echo "    ENVIRONMENT VARIABLES"
@@ -547,32 +567,50 @@ function f-kube-run-v() {
     if  kubectl ${kubectl_cmd_namespace_opt} get pod/${POD_NAME} > /dev/null 2>&1 ; then
         echo "  already running pod/${POD_NAME}"
     else
+        # support workingdir
+        if [ -n "$workingdir" ]; then
+            # PODの中をoverrideする場合は、全部ここに記述しないといけない；；
+            workingdir_json=' "containers" : [ {
+                "name": "'$POD_NAME'" ,
+                "image": "'$image'",
+                "imagePullPolicy": "'$image_pull_policy_json'",
+                "workingDir" : "'$workingdir'" ,
+                "command" : [ "tail", "-f", "/dev/null" ],
+                "env": [
+                    { "name": "http_proxy"  , "value" : "'$http_proxy'" },
+                    { "name": "https_proxy" , "value" : "'$https_proxy'" },
+                    { "name": "no_proxy"    , "value" : "'$no_proxy'" },
+                    { "name": "DOCKER_HOST" , "value" : "'$DOCKER_HOST'" }
+                    '"$env_json"'
+                ]
+            } ] '
+        fi
         # generate override json
         local override_base_json=
-        local override_sep=
-        if [ -z "$image_pull_secrets_json" -a -z "$node_select_json" ]; then
-            override_base_json=
-        elif [ -n "$image_pull_secrets_json" -a -n "$node_select_json" ] ; then
-            override_sep=","
-            override_base_json=' { "apiVersion": "v1", "spec" : { '"${image_pull_secrets_json}${override_sep}${node_select_json}"' } } '
-        else
-            override_base_json=' { "apiVersion": "v1", "spec" : { '"${image_pull_secrets_json}${node_select_json}"' } } '
+        local override_sep1=,
+        local override_sep2=,
+        if [ -z "$image_pull_secrets_json" ]; then
+            override_sep1=
         fi
-
+        if [ -z "$node_select_json" -a -z "$image_pull_secrets_json" ] ; then
+            override_sep2=
+        fi
+        override_base_json=' { "apiVersion": "v1", "spec" : { '"${image_pull_secrets_json}${override_sep1}${node_select_json}${override_sep2}${workingdir_json}"' } } '
         if true ; then
             # dry run
             echo "  "
             echo "  ### dry-run : Pod yaml info start"
             kubectl run ${POD_NAME} --restart=Never \
+                --overrides  "${override_base_json}" \
                 --image=$image \
                 $imagePullOpt \
-                --overrides  "${override_base_json}" \
                 --serviceaccount=mycentos7docker-${namespace} \
                 ${kubectl_cmd_namespace_opt} \
                 --env="http_proxy=${http_proxy}" --env="https_proxy=${https_proxy}" --env="no_proxy=${no_proxy}" \
                 --env="DOCKER_HOST=${DOCKER_HOST}" \
                 ${env_opts} \
-                --dry-run -o yaml | awk '{print "  " $0;}'
+                --dry-run -o yaml \
+                --command -- tail -f $(  f-msys-escape '/dev/null' ) | awk '{print "  " $0;}'
             RC=$? ; if [ $RC -ne 0 ]; then echo "kubectl dry-run error. abort." ; return $RC; fi
             echo "  ### dry-run : Pod yaml info end"
             echo "  "
