@@ -145,8 +145,8 @@ ENV ENV $HOME/.bashrc
 # パスワード hogehoge
 RUN groupadd -g 1000 ubuntu && \
     useradd  -g      ubuntu -G sudo -m -s /bin/bash ubuntu && \
-    echo 'ubuntu:hogehoge' | chpasswd
-RUN echo 'Defaults visiblepw'            >> /etc/sudoers
+    echo 'ubuntu:hogehoge' | chpasswd && \
+RUN echo 'Defaults visiblepw'            >> /etc/sudoers && \
 RUN echo 'ubuntu ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # use normal user ubuntu
