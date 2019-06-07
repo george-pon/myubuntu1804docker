@@ -226,6 +226,8 @@ function f-kube-run-v() {
     local command_line=
     local env_opts=
     local env_json=
+    local limits_memory=
+    local limits_memory_json=
     local pseudo_volume_bind=true
     local pseudo_volume_list=
     local pseudo_volume_left=
@@ -452,6 +454,13 @@ function f-kube-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--limit-memory"x ]; then
+            limits_memory=$2
+            limits_memory_json=' "limits" : { "memory" : "'$2'" } , "requests" : { "memory" : "1M" } '
+            shift
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--help"x ]; then
             echo "kube-run-v"
             echo "    -n, --namespace  namespace        set kubectl run namespace"
@@ -477,6 +486,7 @@ function f-kube-run-v() {
             echo "    -w, --workdir pathname            set pseudo working directory (must be absolute path name)"
             echo "        --workingdir pathname         set workingDir to pod (must be absolute path name)"
             echo "        --source-profile file.sh      set pseudo profile shell name in workdir"
+            echo "        --limit-memory value          set resources.limits.memory value for pod"
             echo ""
             echo "    ENVIRONMENT VARIABLES"
             echo "        KUBE_RUN_V_IMAGE              set default image name"
@@ -568,7 +578,7 @@ function f-kube-run-v() {
         echo "  already running pod/${POD_NAME}"
     else
         # support workingdir
-        if [ -n "$workingdir" ]; then
+        if [ -n "$workingdir" -o -n "$limits_memory" ]; then
             # PODの中をoverrideする場合は、全部ここに記述しないといけない；；
             workingdir_json=' "containers" : [ {
                 "name": "'$POD_NAME'" ,
@@ -582,8 +592,10 @@ function f-kube-run-v() {
                     { "name": "no_proxy"    , "value" : "'$no_proxy'" },
                     { "name": "DOCKER_HOST" , "value" : "'$DOCKER_HOST'" }
                     '"$env_json"'
-                ]
+                ],
+                "resources" : { '"$limits_memory_json"' }
             } ] '
+            # echo "workingdir_json is $workingdir_json"
         fi
         # generate override json
         local override_base_json=
