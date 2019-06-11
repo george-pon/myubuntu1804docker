@@ -228,6 +228,8 @@ function f-kube-run-v() {
     local env_json=
     local limits_memory=
     local limits_memory_json=
+    local runas_option=
+    local runas_option_json=
     local pseudo_volume_bind=true
     local pseudo_volume_list=
     local pseudo_volume_left=
@@ -373,7 +375,7 @@ function f-kube-run-v() {
             shift
             continue
         fi
-        if [ x"$1"x = x"+v"x -o x"$1"x = x"++volume"x ]; then
+        if [ x"$1"x = x"+v"x -o x"$1"x = x"++volume"x -o x"$1"x = x"--no-volume"x ]; then
             pseudo_volume_bind=
             shift
             continue
@@ -461,6 +463,13 @@ function f-kube-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--runas"x ]; then
+            runas_option=$2
+            runas_option_json=' "securityContext" : { "runAsUser" : '$2' } '
+            shift
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--help"x ]; then
             echo "kube-run-v"
             echo "    -n, --namespace  namespace        set kubectl run namespace"
@@ -487,6 +496,7 @@ function f-kube-run-v() {
             echo "        --workingdir pathname         set workingDir to pod (must be absolute path name)"
             echo "        --source-profile file.sh      set pseudo profile shell name in workdir"
             echo "        --limit-memory value          set resources.limits.memory value for pod"
+            echo "        --runas  uid                  set runas user for pod"
             echo ""
             echo "    ENVIRONMENT VARIABLES"
             echo "        KUBE_RUN_V_IMAGE              set default image name"
@@ -601,7 +611,7 @@ function f-kube-run-v() {
         local override_base_json=
         local override_elem=
         local override_buff=
-        for override_elem in "$image_pull_secrets_json" "$node_select_json" "$workingdir_json"
+        for override_elem in "$runas_option_json" "$image_pull_secrets_json" "$node_select_json" "$workingdir_json"
         do
             if [ -n "$override_elem" ]; then
                 if [ -z "$override_buff" ]; then
@@ -612,6 +622,7 @@ function f-kube-run-v() {
             fi
         done
         override_base_json=' { "apiVersion": "v1", "spec" : { '"${override_buff}"' } } '
+        echo "override_base_json is $override_base_json"
         if true ; then
             # dry run
             echo "  "
