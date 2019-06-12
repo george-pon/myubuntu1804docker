@@ -248,6 +248,7 @@ function f-kube-run-v() {
     local volume_carry_out=true
     local image_pull_secrets_json=
     local node_select_json=
+    local no_carry_on_proxy=
 
     f-check-winpty 2>/dev/null
 
@@ -470,6 +471,12 @@ function f-kube-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--no-carry-on-proxy"x ]; then
+            no_carry_on_proxy=true
+            shift
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--help"x ]; then
             echo "kube-run-v"
             echo "    -n, --namespace  namespace        set kubectl run namespace"
@@ -497,6 +504,7 @@ function f-kube-run-v() {
             echo "        --source-profile file.sh      set pseudo profile shell name in workdir"
             echo "        --limit-memory value          set resources.limits.memory value for pod"
             echo "        --runas  uid                  set runas user for pod"
+            echo "        --no-carry-on-proxy           do not set proxy environment variables for pod"
             echo ""
             echo "    ENVIRONMENT VARIABLES"
             echo "        KUBE_RUN_V_IMAGE              set default image name"
@@ -590,6 +598,21 @@ function f-kube-run-v() {
         # support workingdir
         if [ -n "$workingdir" -o -n "$limits_memory" ]; then
             # PODの中をoverrideする場合は、全部ここに記述しないといけない；；
+            if [ -z "$no_carry_on_proxy" ]; then
+                for envproxy in http_proxy=$http_proxy https_proxy=$https_proxy no_proxy=$no_proxy DOCKER_HOST=$DOCKER_HOST
+                do
+                    local env_key_val=$2
+                    local env_key=${env_key_val%%=*}
+                    local env_val=${env_key_val#*=}
+                    if [ -z "$env_opts" ]; then
+                        env_opts="--env $env_key=$env_val"
+                        env_json=' , { "name":  "'$env_key'" , "value": "'$env_val'" } '
+                    else
+                        env_opts="$env_opts --env $env_key=$env_val"
+                        env_json="$env_json"' , {  "name" : "'$env_key'" , "value" : "'$env_val'" } '
+                    fi
+                done
+            fi
             workingdir_json=' "containers" : [ {
                 "name": "'$POD_NAME'" ,
                 "image": "'$image'",
@@ -597,10 +620,6 @@ function f-kube-run-v() {
                 "workingDir" : "'$workingdir'" ,
                 "command" : [ "tail", "-f", "/dev/null" ],
                 "env": [
-                    { "name": "http_proxy"  , "value" : "'$http_proxy'" },
-                    { "name": "https_proxy" , "value" : "'$https_proxy'" },
-                    { "name": "no_proxy"    , "value" : "'$no_proxy'" },
-                    { "name": "DOCKER_HOST" , "value" : "'$DOCKER_HOST'" }
                     '"$env_json"'
                 ],
                 "resources" : { '"$limits_memory_json"' }
@@ -622,6 +641,10 @@ function f-kube-run-v() {
             fi
         done
         override_base_json=' { "apiVersion": "v1", "spec" : { '"${override_buff}"' } } '
+        local kubectl_proxy_env_opt=
+        if [ -n "$no_carry_on_proxy" ]; then
+            kubectl_proxy_env_opt='--env='"http_proxy=${http_proxy}"' --env='"https_proxy=${https_proxy}"' --env='"no_proxy=${no_proxy}"' --env='"DOCKER_HOST=${DOCKER_HOST}"
+        fi
         echo "override_base_json is $override_base_json"
         if true ; then
             # dry run
@@ -633,8 +656,7 @@ function f-kube-run-v() {
                 $imagePullOpt \
                 --serviceaccount=mycentos7docker-${namespace} \
                 ${kubectl_cmd_namespace_opt} \
-                --env="http_proxy=${http_proxy}" --env="https_proxy=${https_proxy}" --env="no_proxy=${no_proxy}" \
-                --env="DOCKER_HOST=${DOCKER_HOST}" \
+                ${kubectl_proxy_env_opt} \
                 ${env_opts} \
                 --dry-run -o yaml \
                 --command -- tail -f $(  f-msys-escape '/dev/null' ) | awk '{print "  " $0;}'
@@ -650,8 +672,7 @@ function f-kube-run-v() {
             --overrides  "${override_base_json}" \
             --serviceaccount=mycentos7docker-${namespace} \
             ${kubectl_cmd_namespace_opt} \
-            --env="http_proxy=${http_proxy}" --env="https_proxy=${https_proxy}" --env="no_proxy=${no_proxy}" \
-            --env="DOCKER_HOST=${DOCKER_HOST}" \
+            ${kubectl_proxy_env_opt} \
             ${env_opts} \
             --command -- tail -f $(  f-msys-escape '/dev/null' )
         RC=$? ; if [ $RC -ne 0 ]; then echo "kubectl run error. abort." ; return $RC; fi
