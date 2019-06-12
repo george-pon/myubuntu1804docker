@@ -471,9 +471,8 @@ function f-kube-run-v() {
             shift
             continue
         fi
-        if [ x"$1"x = x"--no-carry-on-proxy"x ]; then
+        if [ x"$1"x = x"--no-carry-on-proxy"x -o x"$1"x = x"--no-proxy"x ]; then
             no_carry_on_proxy=true
-            shift
             shift
             continue
         fi
