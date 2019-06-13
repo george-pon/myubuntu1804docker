@@ -641,7 +641,7 @@ function f-kube-run-v() {
         done
         override_base_json=' { "apiVersion": "v1", "spec" : { '"${override_buff}"' } } '
         local kubectl_proxy_env_opt=
-        if [ -n "$no_carry_on_proxy" ]; then
+        if [ -z "$no_carry_on_proxy" ]; then
             kubectl_proxy_env_opt='--env='"http_proxy=${http_proxy}"' --env='"https_proxy=${https_proxy}"' --env='"no_proxy=${no_proxy}"' --env='"DOCKER_HOST=${DOCKER_HOST}"
         fi
         echo "override_base_json is $override_base_json"
