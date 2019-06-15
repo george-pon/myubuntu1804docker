@@ -42,6 +42,8 @@ RUN apt-get update && apt-get install -y --fix-missing \
         netcat \
         net-tools \
         postgresql-client \
+        python3-pip \
+        python-pip \
         rsync \
         sudo \
         tcpdump \
