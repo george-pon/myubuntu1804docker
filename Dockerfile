@@ -6,10 +6,10 @@ ENV MYUBUNTU1804DOCKER_VERSION stable
 ENV MYUBUNTU1804DOCKER_IMAGE myubuntu1804docker
 
 # set locale
-RUN apt-get update && \
-    apt-get install -y locales  apt-transport-https  ca-certificates  language-pack-ja  software-properties-common && \
+RUN apt update && \
+    apt install -y locales  apt-transport-https  ca-certificates  language-pack-ja  software-properties-common && \
     localedef -i ja_JP -c -f UTF-8 -A /usr/share/locale/locale.alias ja_JP.UTF-8 && \
-    apt-get clean
+    apt clean
 ENV LANG ja_JP.utf8
 
 # set timezone
@@ -20,11 +20,12 @@ ENV TZ Asia/Tokyo
 RUN rm /etc/dpkg/dpkg.cfg.d/excludes
 
 # re-install packages with manual
-RUN dpkg -l | grep ^ii | cut -d' ' -f3 | xargs apt-get install -y --reinstall
-RUN apt-get install -y man-db  manpages && apt-get clean
+RUN dpkg -l | grep ^ii | cut -d' ' -f3 | xargs apt install -y --reinstall && apt clean
+# install man pages
+RUN apt install -y man-db  manpages && apt clean
 
 # install etc utils
-RUN apt-get update && apt-get install -y --fix-missing \
+RUN apt update && apt install -y --fix-missing \
         ansible \
         bash-completion \
         connect-proxy \
@@ -53,7 +54,7 @@ RUN apt-get update && apt-get install -y --fix-missing \
         vim \
         wget \
         zip \
-    && apt-get clean all
+    && apt clean all
 
 # install docker client
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && \
