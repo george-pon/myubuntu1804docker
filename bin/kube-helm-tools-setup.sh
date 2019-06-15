@@ -15,21 +15,11 @@
 #
 function f-download-kube-run-v-sh() {
     pushd /usr/local/bin
-    curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/kube-run-v.sh
-    chmod +x kube-run-v.sh
-    curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/kube-all.sh
-    chmod +x kube-all.sh
-    curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/kube-helm-client-init.sh
-    chmod +x kube-helm-client-init.sh
-    curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/docker-run-ctop.sh
-    chmod +x docker-run-ctop.sh
-    curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/docker-clean.sh
-    chmod +x docker-clean.sh
-    curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/kube-helm-tools-setup.sh
-    curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/curl-no-proxy.sh
-    chmod +x curl-no-proxy.sh
-    curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/download-my-shells.sh
-    chmod +x download-my-shells.sh
+    for i in kube-run-v.sh  kube-all.sh  kube-all-check.sh  docker-clean.sh  download-my-shells.sh  kube-helm-client-init.sh  kube-helm-tools-setup.sh  docker-run-ctop.sh curl-no-proxy.sh  kube-flannel-reset.sh download-my-shells.sh
+    do
+      curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/$i
+      chmod +x $i
+    done
     popd
 }
 
@@ -259,10 +249,10 @@ if true; then
     helm repo add kjwikigdockerrepo  https://raw.githubusercontent.com/george-pon/kjwikigdocker/master/helm-chart/charts
     helm repo update
     helm search kjwikigdocker
-    helm inspect kjwikigdockerrepo/kjwikigdocker
+    helm inspect kjwikigdockerrepo/kjwikigdocker --version 0.0.497
     helm delete --purge kjwikigdocker
     sleep 5
-    helm install kjwikigdockerrepo/kjwikigdocker \
+    helm install kjwikigdockerrepo/kjwikigdocker --version 0.0.497 \
         --name kjwikigdocker \
         --set ingress.hosts="{kjwikigdocker.minikube.local}"
     kubectl rollout status deploy/kjwikigdocker
@@ -326,70 +316,35 @@ kubectl --namespace kube-system rollout status deploy/kubernetes-dashboard
 
 
 #
-#  prometheus
-#
-function f-helm-prometheus() {
-if false ; then
-    helm inspect stable/prometheus
-    helm fetch   stable/prometheus
-helm install stable/prometheus \
-    --name prometheus \
-    --values - << "EOF"
-server:
-  ingress:
-    enabled: true
-    hosts:
-    - promethus.minikube.local
-EOF
-fi
-}
-
-
-#
 #  prometheus-operator
 #
 function f-helm-prometheus-operator() {
-if false ; then
+if true ; then
 #
 #  prometheus-operator
 #  prometheus-operator-5.0.2
-#  prometheus-operatorがあれば、prometheus不要かもしれない
+#  prometheus-operatorがあれば、prometheus不要かも
 #  prometheusがインストール済みだと "prometheusrules.monitoring.coreos.com" が重複してインストールできない
 #  prometheus-operatorを一回インストールしてしまうと、helm delete しても "prometheusrules.monitoring.coreos.com" が重複してインストールできない
-# 
-# これインストールすると load average が 28とかになる；；なんだこれ；；
-#
-#    --set kubelet.serviceMonitor.https=false \
-#    --set kubeControllerManager.enabled=false \
-#    --set kubeScheduler.enabled=false \
-#    --set defaultRules.rules.kubernetesSystem=false \
+#  kubectl get crd して、表示された prometheus 関連の crd を削除する必要がある
 #
 #  aksでkubeletのreadOnlyPort 10255が封鎖された。kubeletの認証付き 10250にアクセスして情報を取得する必要がある。
 #    --set kubelet.serviceMonitor.https=true にする必要がある。
 #  https://github.com/awslabs/amazon-eks-ami/issues/128
 #
-# prometheus-operator-5.0.3
-# app version 0.29.0
-# Error: object is being deleted: customresourcedefinitions.apiextensions.k8s.io "prometheuses.monitoring.coreos.com" already exists
+# prometheus-operator-5.7.0
 #
-helm inspect stable/prometheus-operator
-helm fetch   stable/prometheus-operator
-helm install stable/prometheus-operator \
+helm inspect stable/prometheus-operator  --version 5.7.0
+
+# kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/master/example/prometheus-operator-crd/alertmanager.crd.yaml
+# kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/master/example/prometheus-operator-crd/prometheus.crd.yaml
+# kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/master/example/prometheus-operator-crd/prometheusrule.crd.yaml
+# kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/master/example/prometheus-operator-crd/servicemonitor.crd.yaml
+
+helm install stable/prometheus-operator --version 5.7.0 \
     --name prometheus-operator \
     --namespace kube-system \
     --values - << "EOF"
-prometheusOperator:
-  crdApiGroup: "myprometheus.monitoring.coreos.com"
-kubelet:
-  serviceMonitor:
-    https: true
-kubeControllerManager:
-  enabled: false
-kubeScheduler:
-  enabled: false
-defaultRules:
-  rules:
-    kubernetesSystem: false
 grafana:
   enabled: true
   ingress:
@@ -397,33 +352,35 @@ grafana:
     hosts:
     - grafana.minikube.local
 EOF
-fi
 
+echo ""
+echo "  access  http://grafana.minikube.local/"
+echo "    username : admin"
+echo "    password : prom-operator"
+echo ""
 
-if false ; then
-helm upgrade  prometheus-operator stable/prometheus-operator \
-    --values - << "EOF"
-kubelet:
-  serviceMonitor:
-    https: true
-kubeControllerManager:
-  enabled: false
-kubeScheduler:
-  enabled: false
-defaultRules:
-  rules:
-    kubernetesSystem: false
-grafana:
-  enabled: true
-  ingress:
-    enabled: true
-    hosts:
-    - grafana.minikube.local
-EOF
 fi
 
 }
 
+
+function f-helm-prometheus-operator-delete() {
+if true ; then
+
+helm delete --purge prometheus-operator
+
+kubectl delete crd prometheuses.monitoring.coreos.com
+kubectl delete crd prometheusrules.monitoring.coreos.com
+kubectl delete crd servicemonitors.monitoring.coreos.com
+kubectl delete crd alertmanagers.monitoring.coreos.com
+
+# kubectl delete crd alertmanagers.myprometheus.monitoring.coreos.com
+# kubectl delete crd prometheuses.myprometheus.monitoring.coreos.com
+# kubectl delete crd prometheusrules.myprometheus.monitoring.coreos.com
+# kubectl delete crd servicemonitors.myprometheus.monitoring.coreos.com
+
+fi
+}
 
 
 

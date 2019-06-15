@@ -8,11 +8,12 @@
 #
 function f-kube-all() {
     if [ $# -eq 0 ]; then
-        echo "ex:f-kube-all get pod"
-        return 0
+        echo kubectl get pod --all-namespaces -o wide
+        kubectl get pod --all-namespaces -o wide
+    else
+        echo kubectl "$@" --all-namespaces -o wide
+        kubectl "$@" --all-namespaces -o wide
     fi
-    echo kubectl "$@" --all-namespaces -o wide
-    kubectl "$@" --all-namespaces -o wide
 }
 
 # if source this file, define function only ( not run )
