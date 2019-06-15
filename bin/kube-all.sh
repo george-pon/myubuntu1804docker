@@ -7,6 +7,8 @@
 # 全namespaceで何か操作する
 #
 function f-kube-all() {
+    echo kubectl config get-contexts
+    kubectl config get-contexts
     if [ $# -eq 0 ]; then
         echo kubectl get pod --all-namespaces -o wide
         kubectl get pod --all-namespaces -o wide

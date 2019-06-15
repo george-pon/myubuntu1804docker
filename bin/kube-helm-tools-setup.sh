@@ -44,7 +44,41 @@ function f-path-add() {
 }
 
 
+# helm server (tiller) をインストールする
+function f-helm-tiller-server() {
+    # helmのインストール
+    if ! type helm ; then
+        echo "install helm client (linux)"
+        export HELM_VERSION=v2.14.1
+        cd /tmp
+        curl -LO https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz
+        tar xzf  helm-${HELM_VERSION}-linux-amd64.tar.gz
+        /bin/cp  linux-amd64/helm  linux-amd64/tiller  /usr/bin
+        /bin/rm  -rf  linux-amd64
+    fi
 
+    echo "helm tiller 実行のためのサービスアカウント設定 node1でのみ実施"
+    kubectl -n kube-system create serviceaccount tiller
+
+    kubectl create clusterrolebinding tiller \
+      --clusterrole cluster-admin \
+      --serviceaccount=kube-system:tiller
+
+    helm init --service-account tiller
+
+    # wait for helm deploy
+    kubectl -n kube-system  rollout status deploy/tiller-deploy
+
+    echo "helm起動待ち"
+    while true
+    do
+        helm version
+        RC=$?
+        if [ $RC -eq 0 ]; then
+            break
+        fi
+    done
+}
 
 #
 # ingress
@@ -208,9 +242,9 @@ service:
     prometheus.io/scrape: "true"
 EOF
 
-# 情報が集まるまで60秒以上待機する
-kubectl top node
-kubectl top pod --all-namespaces
+echo "情報が集まるまで60秒以上待機すること"
+echo "kubectl top node"
+echo "kubectl top pod --all-namespaces"
 fi
 }
 
@@ -249,10 +283,10 @@ if true; then
     helm repo add kjwikigdockerrepo  https://raw.githubusercontent.com/george-pon/kjwikigdocker/master/helm-chart/charts
     helm repo update
     helm search kjwikigdocker
-    helm inspect kjwikigdockerrepo/kjwikigdocker --version 0.0.497
+    helm inspect kjwikigdockerrepo/kjwikigdocker
     helm delete --purge kjwikigdocker
-    sleep 5
-    helm install kjwikigdockerrepo/kjwikigdocker --version 0.0.497 \
+    sleep 15
+    helm install kjwikigdockerrepo/kjwikigdocker \
         --name kjwikigdocker \
         --set ingress.hosts="{kjwikigdocker.minikube.local}"
     kubectl rollout status deploy/kjwikigdocker
