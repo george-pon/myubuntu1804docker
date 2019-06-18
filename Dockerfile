@@ -52,6 +52,7 @@ RUN apt update && apt install -y --fix-missing \
         tree \
         unzip \
         vim \
+        w3m \
         wget \
         zip \
     && apt clean all
