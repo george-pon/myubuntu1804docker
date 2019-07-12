@@ -49,10 +49,10 @@ function f-msys-escape() {
     if type cmd 2>/dev/null 1>/dev/null ; then
         # check msys convert
         local result=$( cmd //c echo "/CN=Name")
-        if echo $result | grep "Program Files" > /dev/null ; then
-            MSYS_FLAG=true
-        else
+        if [ x"$result"x = x"/CN=Name"x ]; then 
             MSYS_FLAG=
+        else
+            MSYS_FLAG=true
         fi
     fi
 
@@ -103,15 +103,20 @@ function f-check-and-run-recover-sh() {
             while true
             do
                 echo    "  warning. found $i file.  run $i and remove it before run kube-run-v."
-                echo -n "  do you want to run $i ? [y/n] : "
+                echo -n "  do you want to run $i ? [y/n/c] : "
                 read ans
                 if [ x"$ans"x = x"y"x  -o  x"$ans"x = x"yes"x ]; then
                     bash -x "$i"
                     /bin/rm -f "$i"
+                    /bin/rm -f "../kube-run-v-kubeconfig-*"
                     break
                 fi
                 if [ x"$ans"x = x"n"x  -o  x"$ans"x = x"no"x ]; then
+                    break
+                fi
+                if [ x"$ans"x = x"c"x  -o  x"$ans"x = x"clear"x ]; then
                     /bin/rm -f "$i"
+                    /bin/rm -f "../kube-run-v-kubeconfig-*"
                     break
                 fi
             done
@@ -249,6 +254,10 @@ function f-kube-run-v() {
     local image_pull_secrets_json=
     local node_select_json=
     local no_carry_on_proxy=
+    # kubectl create secret docker-registry <name> --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
+    local docker_registry_name=
+    local docker_registry_username=
+    local docker_registry_password=
 
     f-check-winpty 2>/dev/null
 
@@ -476,6 +485,24 @@ function f-kube-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--docker-registry-name"x ]; then
+            docker_registry_name=$2
+            shift
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--docker-registry-username"x ]; then
+            docker_registry_username=$2
+            shift
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--docker-registry-password"x ]; then
+            docker_registry_password=$2
+            shift
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--help"x ]; then
             echo "kube-run-v"
             echo "    -n, --namespace  namespace        set kubectl run namespace"
@@ -503,7 +530,10 @@ function f-kube-run-v() {
             echo "        --source-profile file.sh      set pseudo profile shell name in workdir"
             echo "        --limit-memory value          set resources.limits.memory value for pod"
             echo "        --runas  uid                  set runas user for pod"
-            echo "        --no-carry-on-proxy           do not set proxy environment variables for pod"
+            echo "        --no-proxy                    do not set proxy environment variables for pod"
+            echo "        --docker-registry-name        create secrets for imagePullSecrets part 1"
+            echo "        --docker-registry-username    create secrets for imagePullSecrets part 2"
+            echo "        --docker-registry-password    create secrets for imagePullSecrets part 3"
             echo ""
             echo "    ENVIRONMENT VARIABLES"
             echo "        KUBE_RUN_V_IMAGE              set default image name"
@@ -587,6 +617,22 @@ function f-kube-run-v() {
             --clusterrole cluster-admin \
             --serviceaccount=${namespace}:mycentos7docker-${namespace}
         RC=$? ; if [ $RC -ne 0 ]; then echo "create clusterrolebinding error. abort." ; return $RC; fi
+    fi
+
+    # setup imagePullSecrets , if set
+    if [ -n "$docker_registry_name" -o -n "$docker_registry_username" -o -n "$docker_registry_password" ] ; then
+        if  kubectl ${kubectl_cmd_namespace_opt} get secrets mycentos7docker-${namespace} > /dev/null ; then
+            echo "  secrets mycentos7docker-${namespace} found."
+        else
+            # docker registry 用のsecretsを作成する
+            echo "kubectl create secret docker-registry mycentos7docker-${namespace}"
+            kubectl ${kubectl_cmd_namespace_opt} create secret docker-registry mycentos7docker-${namespace} \
+                --docker-server="$docker_registry_name" \
+                --docker-username="$docker_registry_username" \
+                --docker-password="$docker_registry_password" \
+                --docker-email="mycentos7docker@example.com"
+            RC=$? ; if [ $RC -ne 0 ] ; then echo "create secrets docker-registry error. abort."; return 1; fi
+        fi
     fi
 
     local TMP_RANDOM=$( date '+%Y%m%d%H%M%S' )

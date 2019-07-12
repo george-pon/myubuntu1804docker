@@ -14,7 +14,7 @@ function f-kube-all-check() {
 
     # 解析の自動化
     TMP_FILE=$( mktemp "tmp-kube-all-XXXXXXXX.txt" )
-    kubectl get pod --all-namespaces -o wide | grep -v NAMESPACE | grep -v Running | grep -v Terminating > $TMP_FILE
+    kubectl get pod --all-namespaces -o wide | grep -v NAMESPACE | grep -v Running | grep -v Terminating | grep -v Completed > $TMP_FILE
     while true
     do
         read ans

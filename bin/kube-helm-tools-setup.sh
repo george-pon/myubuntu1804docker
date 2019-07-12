@@ -14,14 +14,63 @@
 # download kube-run-v.sh
 #
 function f-download-kube-run-v-sh() {
-    pushd /usr/local/bin
-    for i in kube-run-v.sh  kube-all.sh  kube-all-check.sh  docker-clean.sh  download-my-shells.sh  kube-helm-client-init.sh  kube-helm-tools-setup.sh  docker-run-ctop.sh curl-no-proxy.sh  kube-flannel-reset.sh download-my-shells.sh
-    do
-      curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/$i
-      chmod +x $i
-    done
-    popd
+    if [ -d /usr/local/bin ]; then
+      pushd /usr/local/bin
+      for i in kube-run-v.sh  kube-all.sh  kube-all-check.sh  docker-clean.sh  download-my-shells.sh  kube-helm-client-init.sh  kube-helm-tools-setup.sh  docker-run-ctop.sh curl-no-proxy.sh  kube-flannel-reset.sh download-my-shells.sh
+      do
+        curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/$i
+        chmod +x $i
+      done
+      popd
+    fi
 }
+
+
+
+# yamlsortコマンドをダウンロードする
+function f-download-yamlsort-command() {
+
+    export YAMLSORT_VERSION=v0.1.16
+
+    # download yamlsort command
+    local UNAMEO=$( uname -o )
+    case $UNAMEO in
+    GNU/Linux)
+        if [ -r yamlsort ]; then
+            return 0
+        fi
+        curl -fLO https://github.com/george-pon/yamlsort/releases/download/${YAMLSORT_VERSION}/linux_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
+        tar xvzf linux_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
+        mv windows_amd64_yamlsort yamlsort
+        chmod +x yamlsort
+        rm windows_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
+        ;;
+    Msys)
+        if [ -r yamlsort.exe ]; then
+            return 0
+        fi
+        curl -fLO https://github.com/george-pon/yamlsort/releases/download/${YAMLSORT_VERSION}/windows_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
+        tar xvzf windows_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
+        mv windows_amd64_yamlsort.exe yamlsort.exe
+        rm windows_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
+        ;;
+    FreeBSD)
+        if [ -r yamlsort ]; then
+            return 0
+        fi
+        curl -fLO https://github.com/george-pon/yamlsort/releases/download/${YAMLSORT_VERSION}/freebsd_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
+        tar xvzf freebsd_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
+        mv freebsd_amd64_yamlsort yamlsort
+        chmod +x yamlsort
+        rm freebsd_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
+        ;;
+    *)
+        echo "unsupported"
+        return 1
+        ;;
+    esac
+}
+
 
 
 # PATHに追加する。
@@ -45,7 +94,7 @@ function f-path-add() {
 
 
 # helm server (tiller) をインストールする
-function f-helm-tiller-server() {
+function f-helm-install-tiller-server() {
     # helmのインストール
     if ! type helm ; then
         echo "install helm client (linux)"
@@ -80,10 +129,13 @@ function f-helm-tiller-server() {
     done
 }
 
+
+
+
 #
 # ingress
 #
-function f-helm-ingress() {
+function f-helm-install-ingress() {
 curl -LO https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/mandatory.yaml
 curl -LO https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/provider/cloud-generic.yaml
 curl -LO https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/provider/baremetal/service-nodeport.yaml
@@ -163,7 +215,7 @@ kubectl apply -f cloud-generic-my.yaml
 
 
 
-function f-helm-heapster() {
+function f-helm-install-heapster-0.3.3() {
 if true; then
 #
 #  heapster
@@ -208,26 +260,19 @@ roleRef:
 EOF
 kubectl apply -f heapster-account.yaml
 
+# 削除
+helm delete --purge heapster
+sleep 15
+
+# inspect
+helm inspect stable/heapster \
+    --version 0.3.3
+
 # heapsterのインストール
-helm inspect stable/heapster
-helm fetch   stable/heapster
 helm install stable/heapster \
     --name heapster \
     --namespace kube-system  \
-    --values - << "EOF"
-command:
-- /heapster
-- --source=kubernetes:kubernetes:https://kubernetes.default?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250&insecure=true
-rbac:
-  create: true
-  serviceAccountName: heapster
-service:
-  annotations:
-    prometheus.io/path: /metrics
-    prometheus.io/port: "8082"
-    prometheus.io/scrape: "true"
-EOF
-helm upgrade heapster stable/heapster \
+    --version 0.3.3 \
     --values - << "EOF"
 command:
 - /heapster
@@ -242,7 +287,7 @@ service:
     prometheus.io/scrape: "true"
 EOF
 
-echo "情報が集まるまで60秒以上待機すること"
+echo "# 情報が集まるまで120秒以上待機してから実行すること"
 echo "kubectl top node"
 echo "kubectl top pod --all-namespaces"
 fi
@@ -276,9 +321,9 @@ kubectl rollout status deploy/$NGINX_NAME
 
 
 #
-# kjwikigdocker
+# kjwikigdocker (PVC)
 #
-function f-helm-kjwikigdocker() {
+function f-helm-install-kjwikigdocker-pvc() {
 if true; then
     helm repo add kjwikigdockerrepo  https://raw.githubusercontent.com/george-pon/kjwikigdocker/master/helm-chart/charts
     helm repo update
@@ -288,8 +333,90 @@ if true; then
     sleep 15
     helm install kjwikigdockerrepo/kjwikigdocker \
         --name kjwikigdocker \
-        --set ingress.hosts="{kjwikigdocker.minikube.local}"
+        --set ingress.hosts="{kjwikigdocker.minikube.local}" \
+        --set persistence.enabled="true"
     kubectl rollout status deploy/kjwikigdocker
+fi
+}
+
+
+
+#
+# kjwikigdocker (hostpath /var/lib/kjwikigdocker)
+#
+function f-helm-install-kjwikigdocker-hostpath() {
+if true; then
+    helm repo add kjwikigdockerrepo  https://raw.githubusercontent.com/george-pon/kjwikigdocker/master/helm-chart/charts
+    helm repo update
+    helm search kjwikigdocker
+    helm inspect kjwikigdockerrepo/kjwikigdocker
+    helm delete --purge kjwikigdocker
+    sleep 15
+kubectl apply -f - << "EOF"
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-kjwikigdocker
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: "/var/lib/kjwikigdocker"
+EOF
+kubectl apply -f - << "EOF"
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: claim-kjwikigdocker
+  # if you want dynamic persistent volume , un-comment below
+  # annotations:
+  #  volume.beta.kubernetes.io/storage-class: "standard"
+spec:
+  # if you want to use persistent volume created manually, uncomment below line.
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+EOF
+    helm install kjwikigdockerrepo/kjwikigdocker \
+        --name kjwikigdocker \
+        --set ingress.hosts="{kjwikigdocker.minikube.local}" \
+        --set persistence.enabled="true" \
+        --set persistence.existingClaim="claim-kjwikigdocker"
+    kubectl rollout status deploy/kjwikigdocker
+fi
+}
+
+
+
+#
+# mydockerdind
+#
+function f-helm-install-mydockerdind() {
+if true; then
+    helm repo add myhelmchartrepo  https://gitlab.com/george-pon/my-helm-chart/raw/master/helm-chart/charts
+    helm repo update
+    helm search mydockerdind
+    helm inspect myhelmchartrepo/mydockerdind
+    helm delete --purge mydockerdind
+    sleep 15
+    helm install myhelmchartrepo/mydockerdind \
+        --name mydockerdind \
+        --set persistence.enabled="false"
+    kubectl rollout status deploy/mydockerdind
+    echo "# my docker dind 使用例"
+    echo "export DOCKER_HOST=tcp://mydockerdind:2375"
+    echo "docker version"
+    echo "docker build"
+    echo ""
 fi
 }
 
@@ -298,7 +425,7 @@ fi
 #
 # growi
 #
-function f-helm-growi() {
+function f-helm-install-growi() {
 if true; then
     helm repo add  growirepo  https://raw.githubusercontent.com/george-pon/growi-helm-chart/master/helm-chart/charts
     helm repo update
@@ -330,7 +457,7 @@ fi
 #
 # helm inspect stable/kubernetes-dashboard
 #
-function f-helm-kubernetes-dashboard() {
+function f-helm-install-kubernetes-dashboard() {
 helm install stable/kubernetes-dashboard \
     --name kubernetes-dashboard \
     --namespace kube-system \
@@ -352,7 +479,7 @@ kubectl --namespace kube-system rollout status deploy/kubernetes-dashboard
 #
 #  prometheus-operator
 #
-function f-helm-prometheus-operator() {
+function f-helm-install-prometheus-operator() {
 if true ; then
 #
 #  prometheus-operator
@@ -398,7 +525,7 @@ fi
 }
 
 
-function f-helm-prometheus-operator-delete() {
+function f-helm-delete-prometheus-operator() {
 if true ; then
 
 helm delete --purge prometheus-operator
