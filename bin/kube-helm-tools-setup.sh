@@ -16,7 +16,7 @@
 function f-download-kube-run-v-sh() {
     if [ -d /usr/local/bin ]; then
       pushd /usr/local/bin
-      for i in kube-run-v.sh  kube-all.sh  kube-all-check.sh  docker-clean.sh  download-my-shells.sh  kube-helm-client-init.sh  kube-helm-tools-setup.sh  docker-run-ctop.sh curl-no-proxy.sh  kube-flannel-reset.sh download-my-shells.sh
+      for i in kube-run-v.sh  ssh-run-v.sh  kube-all.sh  kube-all-check.sh  docker-clean.sh  download-my-shells.sh  kube-helm-client-init.sh  kube-helm-tools-setup.sh  docker-run-ctop.sh curl-no-proxy.sh  kube-flannel-reset.sh download-my-shells.sh
       do
         curl -LO https://raw.githubusercontent.com/george-pon/mycentos7docker/master/bin/$i
         chmod +x $i

@@ -258,6 +258,11 @@ function f-kube-run-v() {
     local docker_registry_name=
     local docker_registry_username=
     local docker_registry_password=
+    local command_line_pass_mode=
+    # support hostpath
+    local hostpath_list=
+    local hostpath_volume_mounts_json=
+    local hostpath_volumes_json=
 
     f-check-winpty 2>/dev/null
 
@@ -284,6 +289,16 @@ function f-kube-run-v() {
     # parse argument option
     while [ $# -gt 0 ]
     do
+        # コマンドライン pass モードチェック
+        if [ x"$command_line_pass_mode"x = x"yes"x ]; then
+            if [ -z "$command_line" ]; then
+                command_line="$1"
+            else
+                command_line="$command_line $1"
+            fi
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--add-host"x ]; then
             add_hosts_list="$add_hosts_list $2"
             shift
@@ -385,6 +400,27 @@ function f-kube-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--hostpath"x ]; then
+            hostpath_left=${2%%:*}
+            hostpath_right=${2##*:}
+            hostpath_name=$( echo $hostpath_left | sed -e 's%[^a-zA-Z0-9]%%g' )
+            if [ x"$hostpath_left"x = x"$2"x ]; then
+                echo "  hostpath_leftis hostpath:mountpath.  : is not found. abort."
+                return 1
+            fi
+            hostpath_list="$hostpath_list $2"
+            if [ -n "$hostpath_volume_mounts_json" ]; then
+                hostpath_volume_mounts_json="$hostpath_volume_mounts_json , "
+            fi
+            hostpath_volume_mounts_json="$hostpath_volume_mounts_json { \"name\" : \"$hostpath_name\" , \"mountPath\" : \"$hostpath_right\" } "
+            if [ -n "$hostpath_volumes_json" ]; then
+                hostpath_volumes_json="$hostpath_volumes_json , "
+            fi
+            hostpath_volumes_json="$hostpath_volumes_json { \"name\" : \"$hostpath_name\" , \"hostPath\" : { \"path\" : \"$hostpath_left\" } } "
+            shift
+            shift
+            continue
+        fi
         if [ x"$1"x = x"+v"x -o x"$1"x = x"++volume"x -o x"$1"x = x"--no-volume"x ]; then
             pseudo_volume_bind=
             shift
@@ -466,6 +502,13 @@ function f-kube-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--node-selector2"x ]; then
+            node_select_json=' "nodeSelector" : { "'$2'" : "'$3'" } '
+            shift
+            shift
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--limit-memory"x ]; then
             limits_memory=$2
             limits_memory_json=' "limits" : { "memory" : "'$2'" } , "requests" : { "memory" : "1M" } '
@@ -503,9 +546,15 @@ function f-kube-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--command"x ]; then
+            command_line_pass_mode=yes
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--help"x ]; then
             echo "kube-run-v"
             echo "    -n, --namespace  namespace        set kubectl run namespace"
+            echo "        --command                     after this option , arguments pass to kubectl exec command line"
             echo "        --image  image-name           set kubectl run image name. default is $image "
             echo "        --image-centos                set image to georgesan/mycentos7docker:latest (default)"
             echo "        --image-ubuntu                set image to georgesan/myubuntu1804docker:latest"
@@ -515,7 +564,8 @@ function f-kube-run-v() {
             echo "        --docker-pull                 docker pull image before kubectl run"
             echo "        --pull                        always pull image"
             echo "        --image-pull-secrets name     image pull secrets name"
-            echo "        --node-selector nodename      set nodeSelector kubernetes.io/hostname label value"
+            echo "        --node-selector nodename      set nodeSelector. selector key is kubernetes.io/hostname , selector value is value"
+            echo "        --node-selector2 key value    set nodeSelector. selector key is key , selector value is value"
             echo "        --add-host host:ip            add a custom host-to-IP to /etc/hosts"
             echo "        --name pod-name               set pod name prefix. default: taken from image name"
             echo "    -e, --env key=value               set environment variables"
@@ -525,6 +575,7 @@ function f-kube-run-v() {
             echo "    -v, --volume hostpath:destpath    pseudo volume bind (copy current directory) to/from pod."
             echo "    +v, ++volume                      stop automatic pseudo volume bind PWD to/from pod."
             echo "        --read-only                   carry on volume files into pod, but not carry out volume files from pod"
+            echo "        --hostpath hostpath:mountpath use hostpath and pod-mount-path"
             echo "    -w, --workdir pathname            set pseudo working directory (must be absolute path name)"
             echo "        --workingdir pathname         set workingDir to pod (must be absolute path name)"
             echo "        --source-profile file.sh      set pseudo profile shell name in workdir"
@@ -545,6 +596,7 @@ function f-kube-run-v() {
             echo ""
             return 0
         fi
+        # それ以外のオプションならkubectl execに渡すコマンドラインオプションとみなす
         if [ -z "$command_line" ]; then
             command_line="$1"
         else
@@ -641,17 +693,17 @@ function f-kube-run-v() {
         echo "  already running pod/${POD_NAME}"
     else
         # support workingdir
-        if [ -n "$workingdir" -o -n "$limits_memory" ]; then
+        if [ -n "$workingdir" -o -n "$limits_memory" -o -n "$hostpath_volume_mounts_json" ]; then
             # PODの中をoverrideする場合は、全部ここに記述しないといけない；；
             if [ -z "$no_carry_on_proxy" ]; then
                 for envproxy in http_proxy=$http_proxy https_proxy=$https_proxy no_proxy=$no_proxy DOCKER_HOST=$DOCKER_HOST
                 do
-                    local env_key_val=$2
+                    local env_key_val=$envproxy
                     local env_key=${env_key_val%%=*}
                     local env_val=${env_key_val#*=}
                     if [ -z "$env_opts" ]; then
                         env_opts="--env $env_key=$env_val"
-                        env_json=' , { "name":  "'$env_key'" , "value": "'$env_val'" } '
+                        env_json=' { "name":  "'$env_key'" , "value": "'$env_val'" } '
                     else
                         env_opts="$env_opts --env $env_key=$env_val"
                         env_json="$env_json"' , {  "name" : "'$env_key'" , "value" : "'$env_val'" } '
@@ -667,15 +719,21 @@ function f-kube-run-v() {
                 "env": [
                     '"$env_json"'
                 ],
-                "resources" : { '"$limits_memory_json"' }
+                "resources" : { '"$limits_memory_json"' },
+                "volumeMounts" : [ '"$hostpath_volume_mounts_json"' ]
             } ] '
             # echo "workingdir_json is $workingdir_json"
         fi
+        local volume_elem_json=
         # generate override json
         local override_base_json=
         local override_elem=
         local override_buff=
-        for override_elem in "$runas_option_json" "$image_pull_secrets_json" "$node_select_json" "$workingdir_json"
+        local volumes_elem=
+        if [ -n "$hostpath_volumes_json" ]; then
+            volumes_elem=" \"volumes\" : [ $hostpath_volumes_json ] "
+        fi
+        for override_elem in "$runas_option_json" "$image_pull_secrets_json" "$node_select_json" "$workingdir_json" "$volumes_elem"
         do
             if [ -n "$override_elem" ]; then
                 if [ -z "$override_buff" ]; then
@@ -690,7 +748,7 @@ function f-kube-run-v() {
         if [ -z "$no_carry_on_proxy" ]; then
             kubectl_proxy_env_opt='--env='"http_proxy=${http_proxy}"' --env='"https_proxy=${https_proxy}"' --env='"no_proxy=${no_proxy}"' --env='"DOCKER_HOST=${DOCKER_HOST}"
         fi
-        echo "override_base_json is $override_base_json"
+        # echo "override_base_json is $override_base_json"
         if true ; then
             # dry run
             echo "  "
