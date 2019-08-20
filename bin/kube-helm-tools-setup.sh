@@ -215,6 +215,137 @@ kubectl apply -f cloud-generic-my.yaml
 
 
 
+
+# うーん。色々前後にやってやると、動作した。 in kubernetes 1.15。
+# うーん。うごかない；； kubectl top pod が動かない...。 kubectl top node は動くみたいだけど...。 in k3s 0.80.0 (k8s 1.14相当)
+function f-helm-install-heapster-1.0.1() {
+#
+#  heapster-1.0.1
+#
+#  --namespace kube-system にしないといけない
+#  認証なしで接続できる kubelet port 10255 がkube 1.13系で廃止されたので、heapster対応待ち。 2019.08.16
+#
+
+  # 削除
+  helm delete --purge heapster
+  echo -n "sleeping 15 seconds..."
+  sleep 15
+  echo ""
+
+  # inspect
+  helm inspect stable/heapster \
+      --version 1.0.1
+
+# アクセス用のロールを作成
+kubectl apply -f - << "EOF"
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: node-stats-full
+rules:
+- apiGroups: [""]
+  resources: ["nodes/stats"]
+  verbs: ["get", "watch", "list", "create"]
+EOF
+
+# kubeletアクセス用のheapsterにRoleをBindする。
+kubectl apply -f - << "EOF"
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: heapster-node-stats
+subjects:
+- kind: ServiceAccount
+  name: heapster
+  namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: node-stats-full
+  apiGroup: rbac.authorization.k8s.io
+EOF
+
+# Pod調査用のRoleを作る
+kubectl apply -f - << "EOF"
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: heapster-custom-fix
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes/stats
+  verbs:
+  - get
+EOF
+
+# kubeletアクセス用のheapsterにRoleをBindする。
+kubectl apply -f - << "EOF"
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: heapster-custom-fix
+subjects:
+- kind: ServiceAccount
+  name: heapster
+  namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: heapster-custom-fix
+  apiGroup: rbac.authorization.k8s.io
+EOF
+
+  # heapsterのインストール
+  helm install stable/heapster \
+      --name heapster \
+      --namespace kube-system  \
+      --version 1.0.1 \
+      --values - << "EOF"
+command:
+- /heapster
+- --source=kubernetes:kubernetes:https://kubernetes.default?useServiceAccount=true&kubeletHttps=true&kubeletPort=10250&insecure=true
+rbac:
+  create: true
+  serviceAccountName: heapster
+service:
+  annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: "8082"
+    prometheus.io/scrape: "true"
+EOF
+
+  echo "# 情報が集まるまで300秒以上待機してから実行すること"
+  echo "kubectl top node"
+  echo "kubectl top pod --all-namespaces"
+
+  # ログ監視
+  # stern -n kube-system heapster
+}
+# f-helm-install-heapster-1.0.1
+
+
+
+
+# kubernetes 1.15 では動作しない。rbacの制約が厳しくなった模様。
 function f-helm-install-heapster-0.3.3() {
 if true; then
 #
@@ -230,8 +361,7 @@ if true; then
 #
 
 # アクセス用のロールを作成
-cat > heapster-role.yaml << "EOF"
----
+kubectl apply -f - << "EOF"
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -241,10 +371,9 @@ rules:
   resources: ["nodes/stats"]
   verbs: ["get", "watch", "list", "create"]
 EOF
-kubectl apply -f heapster-role.yaml
 
-# kubeletアクセス用のアカウントを作成。heapster-heapsterという名前になってしまうのでその名前で作る
-cat > heapster-account.yaml << "EOF"
+# kubeletアクセス用のアカウントheapster-heapsterにRoleをBindする。
+kubectl apply -f - << "EOF"
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -258,7 +387,6 @@ roleRef:
   name: node-stats-full
   apiGroup: rbac.authorization.k8s.io
 EOF
-kubectl apply -f heapster-account.yaml
 
 # 削除
 helm delete --purge heapster
@@ -287,11 +415,18 @@ service:
     prometheus.io/scrape: "true"
 EOF
 
-echo "# 情報が集まるまで120秒以上待機してから実行すること"
+echo "# 情報が集まるまで300秒以上待機してから実行すること"
 echo "kubectl top node"
 echo "kubectl top pod --all-namespaces"
+
+  # ログ監視
+  # stern -n kube-system heapster
+
 fi
 }
+# f-helm-install-heapster-0.3.3
+
+
 
 
 
@@ -320,6 +455,144 @@ kubectl rollout status deploy/$NGINX_NAME
 
 
 
+
+
+#
+# cert-manager
+#
+# see https://hub.helm.sh/charts/jetstack/cert-manager
+# see https://docs.cert-manager.io/en/latest/tasks/issuers/index.html
+# see https://docs.cert-manager.io/en/latest/tutorials/acme/quick-start/index.html ( ACME型 Let's Encrypt を使う場合のチュートリアル )
+#
+# なんか設定が複雑だな・・・。
+#
+f-helm-cert-manager-0-9-1-self-sign() {
+
+    # before install , you must apply CRDS
+    kubectl apply -f https://raw.githubusercontent.com/jetstack/cert-manager/release-0.9/deploy/manifests/00-crds.yaml
+
+    # Create the namespace for cert-manager
+    kubectl create namespace cert-manager
+    
+    # Label the cert-manager namespace to disable resource validation
+    kubectl label namespace cert-manager certmanager.k8s.io/disable-validation=true
+
+    # Add the Jetstack Helm repository
+    helm repo add jetstack https://charts.jetstack.io
+
+    #  Updating the repo just incase it already existed
+    helm repo update
+
+    # Install the cert-manager helm chart
+    helm install --name cert-manager --namespace cert-manager jetstack/cert-manager --version v0.9.1
+
+    # wait for deploy
+    kubectl rollout status --namespace cert-manager deploy/cert-manager
+    kubectl rollout status --namespace cert-manager deploy/cert-manager-webhook
+
+
+# Setting up self signing Issuers 自己署名タイプ
+kubectl apply -f - << "EOF"
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: ClusterIssuer
+metadata:
+  name: selfsigning-issuer
+spec:
+  selfSigned: {}
+EOF
+
+
+kubectl apply -f - << "EOF"
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Certificate
+metadata:
+  name: example-crt
+spec:
+  secretName: my-selfsigned-cert
+  commonName: "my-selfsigned-root-ca"
+  isCA: true
+  issuerRef:
+    name: selfsigning-issuer
+    kind: ClusterIssuer
+EOF
+
+# 上の操作で、namespace default に secrets/my-selfsigned-cert  が生成される。
+# ingressのtlsのsecretNameに指定すれば、httpsアクセスできる。 nginx に限るけど。traefikだとうまくいかない模様。
+
+}
+
+
+
+
+
+
+#
+# kjwikigdocker (emptyDir)
+#
+function f-helm-install-kjwikigdocker-emptydir() {
+if true; then
+    helm repo add kjwikigdockerrepo  https://raw.githubusercontent.com/george-pon/kjwikigdocker/master/helm-chart/charts
+    helm repo update
+    helm search kjwikigdocker
+    helm inspect kjwikigdockerrepo/kjwikigdocker
+    helm delete --purge kjwikigdocker
+    sleep 15
+    helm install kjwikigdockerrepo/kjwikigdocker \
+        --name kjwikigdocker \
+        --set ingress.hosts="{kjwikigdocker.minikube.local}"
+    kubectl rollout status deploy/kjwikigdocker
+    # テストアクセス
+    # curl -v -k -H "Host: kjwikigdocker.minikube.local" http://192.168.33.10/kjwikigdocker/
+    # curl -v -k -H "Host: kjwikigdocker.minikube.local" http://192.168.72.10/kjwikigdocker/
+fi
+}
+# f-helm-install-kjwikigdocker-emptydir
+
+
+
+
+#
+# kjwikigdocker (emptyDir)(cert-manager self-signed https)
+#
+function f-helm-install-kjwikigdocker-emptydir-https() {
+if true; then
+    helm repo add kjwikigdockerrepo  https://raw.githubusercontent.com/george-pon/kjwikigdocker/master/helm-chart/charts
+    helm repo update
+    helm search kjwikigdocker
+    helm inspect kjwikigdockerrepo/kjwikigdocker
+    helm delete --purge kjwikigdocker
+    sleep 15
+    helm install kjwikigdockerrepo/kjwikigdocker \
+        --name kjwikigdocker \
+        --values - << "EOF"
+ingress:
+  enabled: true
+  annotations:
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+    # for accept large file post
+    # see https://github.com/kubernetes/ingress-nginx
+    # see https://github.com/kubernetes/ingress-nginx/blob/master/docs/user-guide/annotations.md
+    nginx.ingress.kubernetes.io/proxy-body-size: 1560m
+
+  path: /kjwikigdocker/
+  hosts:
+    - kjwikigdocker.minikube.local
+  tls:
+  - secretName: my-selfsigned-cert
+    hosts:
+    - kjwikigdocker.minikube.local
+EOF
+    kubectl rollout status deploy/kjwikigdocker
+
+    # テストアクセス
+    # curl -v -k -H "Host: kjwikigdocker.minikube.local" https://192.168.33.10/kjwikigdocker/
+    # curl -v -k -H "Host: kjwikigdocker.minikube.local" https://192.168.72.10/kjwikigdocker/
+fi
+}
+
+
+
 #
 # kjwikigdocker (PVC)
 #
@@ -338,6 +611,9 @@ if true; then
     kubectl rollout status deploy/kjwikigdocker
 fi
 }
+# f-helm-install-kjwikigdocker-pvc
+
+
 
 
 
@@ -419,6 +695,8 @@ if true; then
     echo ""
 fi
 }
+# f-helm-install-mydockerdind
+
 
 
 

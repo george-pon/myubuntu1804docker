@@ -19,9 +19,6 @@
 #   LogLevel FATAL
 # 
 
-# エラーがあったら停止
-set -e
-
 # 初期化
 alias rm=rm
 alias cp=cp
@@ -60,17 +57,24 @@ function f-ssh-run-v() {
     RC_FILE_NAME=$( echo $ARC_FILE_NAME | sed -e 's/.tar.gz/.sh/g' )
     CURRENT_DIR_NAME=$( basename $PWD )
     tar czf  $ARC_FILE_PATH  .
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     scp $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $ARC_FILE_PATH  $SSH_CMD_HOST:$ARC_FILE_NAME
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- mkdir -p $CURRENT_DIR_NAME
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- tar xzf $ARC_FILE_NAME -C $CURRENT_DIR_NAME
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- ls -l $ARC_FILE_NAME
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- rm  $ARC_FILE_NAME
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     rm $ARC_FILE_PATH
     echo "#!/bin/bash" > $RC_FILE_PATH
     echo 'source ~/.bashrc' >> $RC_FILE_PATH
     echo "cd $CURRENT_DIR_NAME" >> $RC_FILE_PATH
     echo "" >> $RC_FILE_PATH
     scp $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $RC_FILE_PATH  $SSH_CMD_HOST:$RC_FILE_NAME
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     rm $RC_FILE_PATH
 
     # ssh でログイン
@@ -78,10 +82,15 @@ function f-ssh-run-v() {
 
     RECV_DIR_PATH=$( mktemp -d ../ssh-run-v-receive-$YMD_HMS-XXXXXXXXXXXX )
     ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST  tar czf  $ARC_FILE_NAME  $CURRENT_DIR_NAME
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     scp $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT   $SSH_CMD_HOST:$ARC_FILE_NAME  $ARC_FILE_PATH
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST  rm  $ARC_FILE_NAME  $RC_FILE_NAME
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     tar xzf  $ARC_FILE_PATH  -C  $RECV_DIR_PATH
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     rsync -rcv  $RECV_DIR_PATH/$CURRENT_DIR_NAME/  ./
+    RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     rm -rf $RECV_DIR_PATH  $ARC_FILE_PATH
 }
 
