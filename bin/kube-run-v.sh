@@ -151,17 +151,22 @@ function f-version-convert() {
 
 # kubernetes 1.10, 1.11ならcarry-on-kubeconfigする必要がある
 # kubernetes 1.13.4ならcarry-on-kubeconfigしなくて良い可能性がある
+# ただ、周辺ツール ( helm とか stern ) は相変わらず ~/.kube/config を必要としているので、デフォルトで持ち込む
 function f-check-kubeconfig-carry-on() {
     export KUBE_SERV_VERSION=$( f-kubernetes-server-version )
     if [ -z "$KUBE_SERV_VERSION" ]; then
         echo "yes"
+        return
     fi
     local NOW_KUBE_SERV_VERSION=$( f-version-convert $KUBE_SERV_VERSION )
     local CMP_KUBE_SERV_VERSION=$( f-version-convert "1.13.0" )
     if [ $CMP_KUBE_SERV_VERSION -le $NOW_KUBE_SERV_VERSION ]; then
-        echo "no"
+        echo "yes"
+        # echo "no"
+        return
     else
         echo "yes"
+        return
     fi
 }
 
@@ -632,7 +637,7 @@ function f-kube-run-v() {
         f-check-and-run-recover-sh
     fi
 
-    # carry_on_kubeconfig
+    # set default value for carry_on_kubeconfig
     if [ -z "$carry_on_kubeconfig" ]; then
         # automatic detect
         local kubectl_current_context=$( kubectl config current-context 2>/dev/null )

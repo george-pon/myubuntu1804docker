@@ -1,5 +1,7 @@
 #!/bin/bash
 #
+# Running 以外のステータスになっている Pod の describe とか logs を取得する
+#
 #  --all-namespaces を打った後に describe とか logs とか打つのが大変なので
 #
 

@@ -6,7 +6,9 @@
 POD_LIST=$( kubectl get pod --namespace kube-system | grep  kube-flannel-ds | grep Running | awk '{print $1}' )
 for i in $POD_LIST
 do
-    echo "==== $i ===="
+    echo ""
+    echo "  $i"
+    echo ""
     kubectl logs --namespace kube-system $i
 done
 

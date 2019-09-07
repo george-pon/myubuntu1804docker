@@ -1,6 +1,8 @@
 #!/bin/bash
 #
-#  色々なツールを helm でガンガンインストールしていく
+#  色々なツールを helm でガンガンインストールしていく元ネタ
+#
+#  このシェルで直接インストールするわけではない
 #
 #
 # http://master.default.svc.k8s.local/
@@ -98,7 +100,7 @@ function f-helm-install-tiller-server() {
     # helmのインストール
     if ! type helm ; then
         echo "install helm client (linux)"
-        export HELM_VERSION=v2.14.1
+        export HELM_VERSION=v2.14.3
         cd /tmp
         curl -LO https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz
         tar xzf  helm-${HELM_VERSION}-linux-amd64.tar.gz
@@ -333,7 +335,7 @@ service:
     prometheus.io/scrape: "true"
 EOF
 
-  echo "# 情報が集まるまで300秒以上待機してから実行すること"
+  echo "# 情報が集まるまで120秒以上待機してから実行すること"
   echo "kubectl top node"
   echo "kubectl top pod --all-namespaces"
 
@@ -425,6 +427,7 @@ echo "kubectl top pod --all-namespaces"
 fi
 }
 # f-helm-install-heapster-0.3.3
+
 
 
 
@@ -522,6 +525,25 @@ EOF
 }
 
 
+
+
+#
+#  httpd サンプル
+#
+function f-httpd-sample() {
+    helm repo add kjwikigdockerrepo  https://raw.githubusercontent.com/george-pon/kjwikigdocker/master/helm-chart/charts
+    helm repo update
+    helm delete --purge myhttpd2
+    sleep 15
+    helm install myhttpd2 --name myhttpd2 --values - << "EOF"
+ingress:
+  enabled: true
+  hosts:
+  - host: myhttpd2.minikube.local
+    paths: [ "/" ]
+EOF
+    kubectl rollout status deploy/myhttpd2
+}
 
 
 
