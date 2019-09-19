@@ -19,7 +19,7 @@
 #   LogLevel FATAL
 # 
 
-# 初期化
+# alias初期化
 alias rm=rm
 alias cp=cp
 alias mv=mv
@@ -66,6 +66,7 @@ function f-ssh-run-v() {
             shift
             continue
         fi
+        break
     done
 
     # オプション設定済みチェック
@@ -89,17 +90,24 @@ function f-ssh-run-v() {
     CURRENT_DIR_NAME=$( basename $PWD )
 
     # 動作ターゲットディレクトリ作成
+    echo "  create target directory $CURRENT_DIR_NAME"
     ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- mkdir -p $CURRENT_DIR_NAME
     RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
 
     # ファイルの持ち込み実施
     if [ x"$NO_CARRY_ON"x = x""x ]; then
+
+        echo "  creating archive file $ARC_FILE_NAME"
         tar czf  $ARC_FILE_PATH  .
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+
         scp $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $ARC_FILE_PATH  $SSH_CMD_HOST:$ARC_FILE_NAME
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+
+        echo "  extracting archive file $ARC_FILE_NAME"
         ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- tar xzf $ARC_FILE_NAME -C $CURRENT_DIR_NAME
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+
         ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- rm  $ARC_FILE_NAME
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
         rm $ARC_FILE_PATH
@@ -113,20 +121,34 @@ function f-ssh-run-v() {
     RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     rm $RC_FILE_PATH
 
-    # ssh でログイン
-    ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT -tt  $SSH_CMD_HOST bash --rcfile $RC_FILE_NAME
+    if [ $# -gt 0 ] ; then
+        # ssh でログイン (コマンドあり)
+        echo "  ssh with command : $*"
+        set -x
+        ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT -tt  $SSH_CMD_HOST -- "$@"
+        set +x
+    else
+        # ssh でログイン (コマンドなし)
+        ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT -tt  $SSH_CMD_HOST -- bash --rcfile $RC_FILE_NAME
+    fi
 
     # ファイルの持ち出し実施
     if [ x"$NO_CARRY_OUT"x = x""x ]; then
+
+        echo "  creating archive file $ARC_FILE_NAME"
         RECV_DIR_PATH=$( mktemp -d ../ssh-run-v-receive-$YMD_HMS-XXXXXXXXXXXX )
         ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST  tar czf  $ARC_FILE_NAME  $CURRENT_DIR_NAME
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+
         scp $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT   $SSH_CMD_HOST:$ARC_FILE_NAME  $ARC_FILE_PATH
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
         ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST  rm  $ARC_FILE_NAME  $RC_FILE_NAME
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+
+        echo "  extracting archive file $ARC_FILE_NAME"
         tar xzf  $ARC_FILE_PATH  -C  $RECV_DIR_PATH
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+
         rsync -rcv --delete  $RECV_DIR_PATH/$CURRENT_DIR_NAME/  ./
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
         rm -rf $RECV_DIR_PATH  $ARC_FILE_PATH
