@@ -104,6 +104,14 @@ function f-ssh-run-v() {
         scp $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $ARC_FILE_PATH  $SSH_CMD_HOST:$ARC_FILE_NAME
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
 
+        echo "  remove target directory $CURRENT_DIR_NAME"
+        ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- rm  -rf  $CURRENT_DIR_NAME
+        RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+
+        echo "  create target directory $CURRENT_DIR_NAME"
+        ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- mkdir -p $CURRENT_DIR_NAME
+        RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+
         echo "  extracting archive file $ARC_FILE_NAME"
         ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- tar xzf $ARC_FILE_NAME -C $CURRENT_DIR_NAME
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
