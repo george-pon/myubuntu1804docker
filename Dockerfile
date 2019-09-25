@@ -31,6 +31,7 @@ RUN apt update && apt install -y --fix-missing \
         connect-proxy \
         curl \
         dnsutils \
+        emacs-nox \
         expect \
         gettext \
         git \
