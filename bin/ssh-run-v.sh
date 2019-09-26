@@ -118,8 +118,10 @@ function f-ssh-run-v() {
 
         ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- rm  $ARC_FILE_NAME
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
-        rm $ARC_FILE_PATH
     fi
+
+    # mktempでファイルを作っているのでここで削除
+    rm $ARC_FILE_PATH
 
     echo "#!/bin/bash" > $RC_FILE_PATH
     echo 'source ~/.bashrc' >> $RC_FILE_PATH
