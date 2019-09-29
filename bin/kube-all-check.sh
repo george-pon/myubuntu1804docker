@@ -23,6 +23,9 @@ function f-kube-all-check() {
         if [ -z "$ans" ]; then
             break
         fi
+        echo "■--------------------------------------------------------------"
+        echo "■ $ans"
+        echo "■"
         LOCAL_DESCRIBE_CMD=$( echo $ans  | awk '{ cmdline = "kubectl describe pod -n " $1 "  " $2 ; print cmdline }' )
         echo "■"
         echo "■ $LOCAL_DESCRIBE_CMD"

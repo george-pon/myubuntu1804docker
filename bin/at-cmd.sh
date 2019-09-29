@@ -39,8 +39,8 @@ function f-at-cmd() {
     while true
     do
         curtime=$( date +%H%M )
-        curtime2=$( date +%H%M%S )
-        echo -n -e  "\rtarget time : $targettime    current time : $curtime2"
+        curtime2=$( date +%H%M )
+        echo -n -e  "\rtarget time : $targettime    current time : $curtime2    command: $@"
         if [ x"$curtime"x = x"$targettime"x ] ; then
             echo " ... found."
             break
