@@ -58,7 +58,9 @@ function f-at-cmd() {
 
     # コマンド実行
     "$@"
-
+    RC=$?
+    echo "at-cmd end at $(date) . exit code is $RC"
+    return $RC
 }
 
 f-at-cmd  "$@"
