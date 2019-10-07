@@ -30,11 +30,13 @@ unalias mv
 function f-ssh-run-v() {
 
     # rsyncコマンド存在チェック
+    local HAS_RSYNC_CMD=true
     if type rsync 1>/dev/null 2>/dev/null ; then
-        echo "rsync found." > /dev/null
+        echo "  rsync found."
+        HAS_RSYNC_CMD=true
     else
-        echo "rsync not found. abort."
-        return 1
+        echo "  rsync not found. using tar command."
+        HAS_RSYNC_CMD=false
     fi
 
     local NO_CARRY_ON=
@@ -48,6 +50,7 @@ function f-ssh-run-v() {
             echo "    --help "
             echo "    --no-carry-on "
             echo "    --no-carry-out "
+            echo "    --no-rsync "
             return 0
         fi
         if [ x"$1"x = x"--no-carry-on"x ]; then
@@ -57,6 +60,11 @@ function f-ssh-run-v() {
         fi
         if [ x"$1"x = x"--no-carry-out"x ]; then
             NO_CARRY_OUT=true
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--no-rsync"x ]; then
+            HAS_RSYNC_CMD=false
             shift
             continue
         fi
@@ -101,10 +109,11 @@ function f-ssh-run-v() {
         tar czf  $ARC_FILE_PATH  .
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
 
+        echo "  sending archive file $ARC_FILE_NAME"
         scp $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $ARC_FILE_PATH  $SSH_CMD_HOST:$ARC_FILE_NAME
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
 
-        echo "  remove target directory $CURRENT_DIR_NAME"
+        echo "  recursive remove target directory $CURRENT_DIR_NAME"
         ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST -- rm  -rf  $CURRENT_DIR_NAME
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
 
@@ -155,13 +164,25 @@ function f-ssh-run-v() {
         ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST  rm  $ARC_FILE_NAME  $RC_FILE_NAME
         RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
 
-        echo "  extracting archive file $ARC_FILE_NAME"
-        tar xzf  $ARC_FILE_PATH  -C  $RECV_DIR_PATH
-        RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
 
-        rsync -rcv --delete  $RECV_DIR_PATH/$CURRENT_DIR_NAME/  ./
-        RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+        if [ x"$HAS_RSYNC_CMD"x = x"true"x ]; then
+            echo "  extracting archive file $ARC_FILE_NAME"
+            tar xzf  $ARC_FILE_PATH  -C  $RECV_DIR_PATH
+            RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+
+            echo "  rsync files ..."
+            rsync -rcv --delete  $RECV_DIR_PATH/$CURRENT_DIR_NAME/  ./
+            RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+        else
+            echo "  tar overwrite ..."
+            echo "  extracting archive file $ARC_FILE_NAME"
+            tar xzf  $ARC_FILE_PATH  -C  ../
+            RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
+        fi
         rm -rf $RECV_DIR_PATH  $ARC_FILE_PATH
+    else
+        ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $SSH_CMD_HOST  rm  $RC_FILE_NAME
+        RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi
     fi
 }
 
