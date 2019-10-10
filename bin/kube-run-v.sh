@@ -358,11 +358,11 @@ function f-kube-run-v() {
             local env_key=${env_key_val%%=*}
             local env_val=${env_key_val#*=}
             if [ -z "$env_opts" ]; then
-                env_opts="--env $env_key=$env_val"
-                env_json=' , { "name":  "'$env_key'" , "value": "'$env_val'" } '
+                env_opts="--env $env_key=$( f-msys-escape $env_val) "
+                env_json=' , { "name":  "'$env_key'" , "value": "'$( f-msys-escape $env_val)'" } '
             else
-                env_opts="$env_opts --env $env_key=$env_val"
-                env_json="$env_json"' , {  "name" : "'$env_key'" , "value" : "'$env_val'" } '
+                env_opts="$env_opts --env $env_key=$( f-msys-escape $env_val ) "
+                env_json="$env_json"' , {  "name" : "'$env_key'" , "value" : "'$( f-msys-escape $env_val )'" } '
             fi
             shift
             shift
