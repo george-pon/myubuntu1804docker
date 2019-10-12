@@ -45,6 +45,17 @@ function f-msys-escape() {
     local args="$@"
     export MSYS_FLAG=
 
+    # check cygwin
+    if type uname 2>/dev/null 1>/dev/null ; then
+        local result=$( uname -o )
+        if [ x"$result"x = x"Cygwin"x ]; then
+            FSYS_FLAG=
+            # if not MSYS, normal return
+            echo "$@"
+            return 0
+        fi
+    fi
+
     # check cmd is found
     if type cmd 2>/dev/null 1>/dev/null ; then
         # check msys convert
