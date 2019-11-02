@@ -1,6 +1,8 @@
 #!/bin/bash
 #
-#  コピーペーストしやすい形にファイルを標準出力に出力する
+#  コピーペーストしやすい形にテキストファイルを標準出力に出力する
+#
+#  2019.10.21 バイナリ転送モードも追加
 #
 
 
@@ -25,21 +27,28 @@ function f_is_text_file() {
 #  コピーペーストしやすい形にファイルを標準出力に出力する
 #
 function f-shar-cat() {
-    if [ $# -eq 0 ]; then
-        echo "f-shar-cat  [options] directory-name or file-name"
-        echo "    options"
-        echo "        --binary ... base64 encode when binary file"
-        echo "        --newer file ... find newer file"
-        return 0
-    fi
 
     # オプション
+    local binary_mode=
     local allow_binary=
     local allow_newer_opt=
     # 引数解析
     while [ $# -gt 0 ];
     do
-        if [ x"$1"x = x"--binary"x ]; then
+        if [ x"$1"x = x"--help"x ]; then
+            echo "f-shar-cat  [options] directory-name or file-name"
+            echo "    options"
+            echo "        --binary-mode  ... transfer files in tar file and base64"
+            echo "        --allow-binary ... allow binary file in base64 encode"
+            echo "        --newer file ... find newer file"
+            return 0
+        fi
+        if [ x"$1"x = x"--binary-mode"x ]; then
+            binary_mode=true
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--allow-binary"x ]; then
             allow_binary=true
             shift
             continue
@@ -60,40 +69,71 @@ function f-shar-cat() {
     local target_dir="$@"
     local file_list=$( find $target_dir $allow_newer_opt | grep -v ".git/"  )
     local i=
-    for i in $file_list
-    do
-        if [ -d "$i" ]; then
-            echo "mkdir -p $i"
-        fi
-        if [ -f "$i" ]; then
-            f_is_text_file "$i"
-            local bText=$?
-            if [ $bText -ne 0 ]; then
-                echo "#"
-                echo "# file $i is binary file. "
-                echo "#"
-                if [ x"$allow_binary"x = x"true"x ]; then
-                    echo "mkdir -p $( dirname $i )"
-                    echo 'cat > '"$i".base64' << "SCRIPTSHAREOF"'
-                    cat "$i" | base64
-                    echo "SCRIPTSHAREOF"
-                    echo 'cat '"$i".base64' | base64 -d > '"$i"
-                else
-                    echo "# skip"
-                fi
-            else
-                echo "#"
-                echo "# $i"
-                echo "#"
-                echo "mkdir -p $( dirname $i )"
-                echo 'cat > '"$i"' << "SCRIPTSHAREOF"'
-                expand -t 4 $i
-                echo "SCRIPTSHAREOF"
-                echo ""
-                echo ""
+    if [ x"$binary_mode"x = x"true"x ]; then
+        # binary mode の場合、全ファイルをtarで送る
+        local tar_file=$( mktemp shar-cat-tar-XXXXXXXXXX.tar.gz )
+        local tar_list_file=$( mktemp shar-cat-list-XXXXXXXXXX.tmp )
+        echo "#"
+        echo "# file $tar_file is binary file. "
+        echo "#"
+        for i in $file_list
+        do
+            if [ -d "$i" ]; then
+                continue
             fi
-        fi
-    done
+            if [ -f "$i" ]; then
+                echo "$i" >> $tar_list_file
+                echo "# add $i"
+            fi
+        done
+        tar czf $tar_file --files-from=$tar_list_file
+        echo 'cat > '"$tar_file".base64' << "SCRIPTSHAREOF"'
+        cat "$tar_file" | base64
+        echo "SCRIPTSHAREOF"
+        echo 'cat '"$tar_file".base64' | base64 -d > '"$tar_file"
+        echo 'tar xvzf '"$tar_file"
+        echo '/bin/rm '"$tar_file"  "$tar_file".base64
+        echo ""
+        echo ""
+        echo ""
+        /bin/rm $tar_file $tar_list_file        
+    else
+        # binary mode ではない場合、catを使ったヒアドキュメント形式で送る
+        for i in $file_list
+        do
+            if [ -d "$i" ]; then
+                echo "mkdir -p $i"
+            fi
+            if [ -f "$i" ]; then
+                f_is_text_file "$i"
+                local bText=$?
+                if [ $bText -ne 0 ]; then
+                    echo "#"
+                    echo "# file $i is binary file. "
+                    echo "#"
+                    if [ x"$allow_binary"x = x"true"x ]; then
+                        echo "mkdir -p $( dirname $i )"
+                        echo 'cat > '"$i".base64' << "SCRIPTSHAREOF"'
+                        cat "$i" | base64
+                        echo "SCRIPTSHAREOF"
+                        echo 'cat '"$i".base64' | base64 -d > '"$i"
+                    else
+                        echo "# skip"
+                    fi
+                else
+                    echo "#"
+                    echo "# $i"
+                    echo "#"
+                    echo "mkdir -p $( dirname $i )"
+                    echo 'cat > '"$i"' << "SCRIPTSHAREOF"'
+                    expand -t 4 $i | grep ^
+                    echo "SCRIPTSHAREOF"
+                    echo ""
+                    echo ""
+                fi
+            fi
+        done
+    fi
 }
 
 # if source this file, define function only ( not run )
