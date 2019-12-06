@@ -5,6 +5,8 @@ ENV MYUBUNTU1804DOCKER_VERSION latest
 ENV MYUBUNTU1804DOCKER_VERSION stable
 ENV MYUBUNTU1804DOCKER_IMAGE myubuntu1804docker
 
+ENV DEBIAN_FRONTEND noninteractive
+
 # set locale
 RUN apt update && \
     apt install -y locales  apt-transport-https  ca-certificates  language-pack-ja  software-properties-common && \
