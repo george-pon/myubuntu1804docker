@@ -7,6 +7,11 @@
 #  ssh-config が無い場合は、 ~/.ssh/config の中の Host から名前を一つ指定して使用する
 #
 #  ~/.ssh/config の記述例
+# 
+# Host *
+#   ServerAliveInterval 30
+#   ServerAliveCountMax 20
+# 
 # Host master1
 #   HostName 127.0.0.1
 #   User vagrant

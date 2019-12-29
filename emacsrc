@@ -1,5 +1,11 @@
+;;
 ;; .emacs
+;;
 
+;; ESC SPACE is set-mark-command
+(define-key global-map "\M- " 'set-mark-command)
+
+;; Japanese Settings
 (set-language-environment "Japanese")
 (prefer-coding-system  'utf-8-unix)
 (set-terminal-coding-system 'utf-8)
@@ -8,6 +14,18 @@
 (setq default-buffer-file-coding-system 'utf-8)
 (set-default-coding-systems 'utf-8)
 (setq file-name-coding-system 'utf-8)
+
+;; タブにスペースを使用する
+(setq-default tab-width 4 indent-tabs-mode nil)
+
+;; 改行コードを表示する
+(setq eol-mnemonic-dos "(CRLF)")
+(setq eol-mnemonic-mac "(CR)")
+(setq eol-mnemonic-unix "(LF)")
+
+;; シフト＋矢印で範囲選択
+;;(setq pc-select-selection-keys-only t)
+;;(pc-selection-mode 1)
 
 ;;; uncomment this line to disable loading of "default.el" at startup
 ;; (setq inhibit-default-init t)

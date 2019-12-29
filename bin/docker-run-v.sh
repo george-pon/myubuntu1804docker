@@ -115,7 +115,7 @@ function f-check-and-run-recover-sh() {
             while true
             do
                 echo    "  warning. found $i file.  run $i and remove it before run docker-run-v."
-                echo -n "  do you want to run $i ? [y/n/c] : "
+                echo -n "  do you want to run $i ? [yes/no/clear] : "
                 read ans
                 if [ x"$ans"x = x"y"x  -o  x"$ans"x = x"yes"x ]; then
                     bash -x "$i"
@@ -365,6 +365,11 @@ function f-docker-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--image-raspi4"x ]; then
+            image=registry.gitlab.com/george-pon/raspi4debian10:latest
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--docker-pull"x -o x"$1"x = x"--pull"x ]; then
             docker_pull=yes
             shift
@@ -411,6 +416,7 @@ function f-docker-run-v() {
             echo "        --image-ubuntu                set image to georgesan/myubuntu1804docker:latest"
             echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian9docker:latest"
             echo "        --image-alpine                set image to registry.gitlab.com/george-pon/myalpine3docker:latest"
+            echo "        --image-raspi4                set image to registry.gitlab.com/george-pon/raspi4debian10:latest"
             echo "        --docker-pull                 docker pull image before docker run"
             echo "        --pull                        docker pull image before docker run"
             echo "        --timeout value               timeout value wait for running contaner"
@@ -516,9 +522,9 @@ function f-docker-run-v() {
     # archive current directory
     local TMP_ARC_FILE=$( mktemp  "../${container_name}-XXXXXXXXXXXX.tar.gz" )
     local TMP_ARC_FILE_RECOVER=${TMP_ARC_FILE}-recover.sh
-    local TMP_ARC_FILE_IN_CONTAINER=$( echo $TMP_ARC_FILE | sed -e 's%^\.\./%%g' )
-    local TMP_DEST_FILE=${namespace}/${container_name}:${TMP_ARC_FILE}
-    local TMP_DEST_MSYS2=$( echo $TMP_DEST_FILE | sed -e 's%:\.\./%:%g' )
+    local TMP_ARC_FILE_IN_CONTAINER=$( echo $TMP_ARC_FILE | sed -e 's%^\.\./%/tmp/%g' )
+    local TMP_DEST_FILE=${container_name}:${TMP_ARC_FILE}
+    local TMP_DEST_MSYS2=$( echo $TMP_DEST_FILE | sed -e 's%:\.\./%:/tmp/%g' )
     local TMP_ARC_DIR=$( echo $TMP_ARC_FILE | sed -e 's%.tar.gz%%g' )
     local TMP_ARC_DIR_FILE=${TMP_ARC_DIR}/$( echo $TMP_ARC_FILE | sed -e 's%^../%%g' )
     local TMP_ARC_FILE_CURRENT_DIR=$( echo $TMP_ARC_FILE | sed -e 's%^../%%g' )
@@ -558,7 +564,7 @@ function f-docker-run-v() {
             fi
 
             # docker cp
-            echo "  docker cp into container"
+            echo "  docker cp into container ... docker cp  ${TMP_ARC_FILE}  ${TMP_DEST_MSYS2}"
             docker cp  ${TMP_ARC_FILE}  ${TMP_DEST_MSYS2}
             RC=$? ; if [ $RC -ne 0 ]; then echo "docker cp error. abort." ; return $RC; fi
 

@@ -468,6 +468,11 @@ function f-kube-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--image-raspi4"x ]; then
+            image=registry.gitlab.com/george-pon/raspi4debian10:latest
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--docker-pull"x ]; then
             docker_pull=yes
             shift
@@ -544,7 +549,7 @@ function f-kube-run-v() {
             shift
             continue
         fi
-        if [ x"$1"x = x"--docker-registry-name"x ]; then
+        if [ x"$1"x = x"--docker-registry-name"x -o x"$1"x = x"--docker-registry-server"x ]; then
             docker_registry_name=$2
             shift
             shift
@@ -576,6 +581,7 @@ function f-kube-run-v() {
             echo "        --image-ubuntu                set image to georgesan/myubuntu1804docker:latest"
             echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian9docker:latest"
             echo "        --image-alpine                set image to registry.gitlab.com/george-pon/myalpine3docker:latest"
+            echo "        --image-raspi4                set image to registry.gitlab.com/george-pon/raspi4debian10:latest"
             echo "        --carry-on-kubeconfig         carry on kubeconfig file into pod"
             echo "        --docker-pull                 docker pull image before kubectl run"
             echo "        --pull                        always pull image"
@@ -598,7 +604,9 @@ function f-kube-run-v() {
             echo "        --limit-memory value          set resources.limits.memory value for pod"
             echo "        --runas  uid                  set runas user for pod"
             echo "        --no-proxy                    do not set proxy environment variables for pod"
-            echo "        --docker-registry-name        create secrets for imagePullSecrets part 1"
+            echo "        --docker-registry-server      create secrets for imagePullSecrets part 1"
+            echo "                                      (https://index.docker.io/v1/ for DockerHub)"
+            echo "                                      secret name regcred is generated"
             echo "        --docker-registry-username    create secrets for imagePullSecrets part 2"
             echo "        --docker-registry-password    create secrets for imagePullSecrets part 3"
             echo ""
@@ -681,25 +689,33 @@ function f-kube-run-v() {
         kubectl ${kubectl_cmd_namespace_opt} create serviceaccount mycentos7docker-${namespace}
         RC=$? ; if [ $RC -ne 0 ]; then echo "create serviceaccount error. abort." ; return $RC; fi
 
+    fi
+
+    # setup cluster role binding
+    if kubectl get clusterrolebinding mycentos7docker-${namespace} ; then
+        echo "  cluster role binding mycentos7docker-${namespace} found."
+    else
         kubectl create clusterrolebinding mycentos7docker-${namespace} \
             --clusterrole cluster-admin \
             --serviceaccount=${namespace}:mycentos7docker-${namespace}
         RC=$? ; if [ $RC -ne 0 ]; then echo "create clusterrolebinding error. abort." ; return $RC; fi
     fi
-
+    
     # setup imagePullSecrets , if set
     if [ -n "$docker_registry_name" -o -n "$docker_registry_username" -o -n "$docker_registry_password" ] ; then
-        if  kubectl ${kubectl_cmd_namespace_opt} get secrets mycentos7docker-${namespace} > /dev/null ; then
-            echo "  secrets mycentos7docker-${namespace} found."
+        if  kubectl ${kubectl_cmd_namespace_opt} get secrets regcred > /dev/null ; then
+            echo "  secrets regcred found."
         else
             # docker registry 用のsecretsを作成する
-            echo "kubectl create secret docker-registry mycentos7docker-${namespace}"
-            kubectl ${kubectl_cmd_namespace_opt} create secret docker-registry mycentos7docker-${namespace} \
+            echo "kubectl create secret docker-registry regcred"
+            kubectl ${kubectl_cmd_namespace_opt} create secret docker-registry regcred \
                 --docker-server="$docker_registry_name" \
                 --docker-username="$docker_registry_username" \
                 --docker-password="$docker_registry_password" \
                 --docker-email="mycentos7docker@example.com"
             RC=$? ; if [ $RC -ne 0 ] ; then echo "create secrets docker-registry error. abort."; return 1; fi
+            # set image pull secret name
+            image_pull_secrets_json=' "imagePullSecrets" : [ { "name" : "regcred" } ] '
         fi
     fi
 
