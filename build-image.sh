@@ -11,6 +11,7 @@ function cdr() {
 
 function f_docker_build() {
     TAG_LIST=$(awk '/^ENV MYUBUNTU1804DOCKER_VERSION/ {print $3;}' Dockerfile)
+    TAG_LIST="$TAG_LIST monthly$(date +%Y%m) "
     TAG_CAR=$(car $TAG_LIST)
     TAG_CDR=$(cdr $TAG_LIST)
     echo $TAG_CDR
