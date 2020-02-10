@@ -181,6 +181,25 @@ function f-check-kubeconfig-carry-on() {
     fi
 }
 
+# kubernetes 1.17 以降なら kubectl run --generator=run-pod/v1 とする yesを返却
+# kubernetes 1.16 以前なら kubectl run で良い no を返却
+function f-check-generator-run-pod() {
+    export KUBE_SERV_VERSION=$( f-kubernetes-server-version )
+    if [ -z "$KUBE_SERV_VERSION" ]; then
+        echo "no"
+        return
+    fi
+    local NOW_KUBE_SERV_VERSION=$( f-version-convert $KUBE_SERV_VERSION )
+    local CMP_KUBE_SERV_VERSION=$( f-version-convert "1.17.0" )
+    if [ $CMP_KUBE_SERV_VERSION -le $NOW_KUBE_SERV_VERSION ]; then
+        echo "yes"
+        return
+    else
+        echo "no"
+        return
+    fi
+}
+
 #
 # 自作イメージを起動して、カレントディレクトリのファイル内容をPod内部に持ち込む
 #   for kubernetes  ( Linux Bash or Git-Bash for Windows MSYS2 )
@@ -279,6 +298,7 @@ function f-kube-run-v() {
     local hostpath_list=
     local hostpath_volume_mounts_json=
     local hostpath_volumes_json=
+    local generator_opt=
 
     f-check-winpty 2>/dev/null
 
@@ -616,6 +636,7 @@ function f-kube-run-v() {
             echo "        DOCKER_HOST                   pass to pod when kubectl run"
             echo "        http_proxy                    pass to pod when kubectl run"
             echo "        https_proxy                   pass to pod when kubectl run"
+            echo "        ftp_proxy                     pass to pod when kubectl run"
             echo "        no_proxy                      pass to pod when kubectl run"
             echo ""
             return 0
@@ -673,6 +694,12 @@ function f-kube-run-v() {
         pseudo_volume_list="$pseudo_volume_list $carry_on_kubeconfig_file:~/.kube/config"
     fi
 
+    # check kubectl run generator
+    generator_result=$( f-check-generator-run-pod )
+    if [ x"$generator_result"x = x"yes"x ]; then
+        generator_opt=" --generator=run-pod/v1 "
+    fi
+
     # setup namespace
     if kubectl get namespace $namespace ; then
         echo "namespace $namespace is found."
@@ -728,7 +755,7 @@ function f-kube-run-v() {
         if [ -n "$workingdir" -o -n "$limits_memory" -o -n "$hostpath_volume_mounts_json" ]; then
             # PODの中をoverrideする場合は、全部ここに記述しないといけない；；
             if [ -z "$no_carry_on_proxy" ]; then
-                for envproxy in http_proxy=$http_proxy https_proxy=$https_proxy no_proxy=$no_proxy DOCKER_HOST=$DOCKER_HOST
+                for envproxy in http_proxy=$http_proxy https_proxy=$https_proxy ftp_proxy=$ftp_proxy no_proxy=$no_proxy DOCKER_HOST=$DOCKER_HOST
                 do
                     local env_key_val=$envproxy
                     local env_key=${env_key_val%%=*}
@@ -778,14 +805,14 @@ function f-kube-run-v() {
         override_base_json=' { "apiVersion": "v1", "spec" : { '"${override_buff}"' } } '
         local kubectl_proxy_env_opt=
         if [ -z "$no_carry_on_proxy" ]; then
-            kubectl_proxy_env_opt='--env='"http_proxy=${http_proxy}"' --env='"https_proxy=${https_proxy}"' --env='"no_proxy=${no_proxy}"' --env='"DOCKER_HOST=${DOCKER_HOST}"
+            kubectl_proxy_env_opt='--env='"http_proxy=${http_proxy}"' --env='"https_proxy=${https_proxy}"' --env='"ftp_proxy=${ftp_proxy}"' --env='"no_proxy=${no_proxy}"' --env='"DOCKER_HOST=${DOCKER_HOST}"
         fi
         # echo "override_base_json is $override_base_json"
         if true ; then
             # dry run
             echo "  "
             echo "  ### dry-run : Pod yaml info start"
-            kubectl run ${POD_NAME} --restart=Never \
+            kubectl run ${generator_opt} ${POD_NAME} --restart=Never \
                 --overrides  "${override_base_json}" \
                 --image=$image \
                 $imagePullOpt \
@@ -801,7 +828,7 @@ function f-kube-run-v() {
         fi
 
         # run
-        kubectl run ${POD_NAME} --restart=Never \
+        kubectl run ${generator_opt} ${POD_NAME} --restart=Never \
             --image=$image \
             $imagePullOpt \
             --overrides  "${override_base_json}" \

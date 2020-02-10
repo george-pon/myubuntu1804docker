@@ -95,8 +95,8 @@ function f-path-add() {
 }
 
 
-# helm server (tiller) をインストールする
-function f-helm-install-tiller-server() {
+# helm server (tiller) をインストールする kube 1.15まで
+function f-helm-install-tiller-server-kube1-15() {
     # helmのインストール
     if ! type helm ; then
         echo "install helm client (linux)"
@@ -117,6 +117,128 @@ function f-helm-install-tiller-server() {
 
     helm init --service-account tiller
 
+    # wait for helm deploy
+    kubectl -n kube-system  rollout status deploy/tiller-deploy
+
+    echo "helm起動待ち"
+    while true
+    do
+        helm version
+        RC=$?
+        if [ $RC -eq 0 ]; then
+            break
+        fi
+    done
+}
+
+
+
+
+# helm server (tiller) をインストールする kube 1.16以降
+function f-helm-install-tiller-server() {
+    # helmのインストール
+    if ! type helm ; then
+        echo "install helm client (linux)"
+        export HELM_VERSION=v2.14.3
+        cd /tmp
+        curl -LO https://storage.googleapis.com/kubernetes-helm/helm-${HELM_VERSION}-linux-amd64.tar.gz
+        tar xzf  helm-${HELM_VERSION}-linux-amd64.tar.gz
+        /bin/cp  linux-amd64/helm  linux-amd64/tiller  /usr/bin
+        /bin/rm  -rf  linux-amd64
+    fi
+
+    echo "helm tiller 実行のためのサービスアカウント設定 node1でのみ実施"
+    kubectl -n kube-system create serviceaccount tiller
+
+    kubectl create clusterrolebinding tiller \
+      --clusterrole cluster-admin \
+      --serviceaccount=kube-system:tiller
+
+    # apps/v1 ではないのでエラーになる
+    # helm init --service-account tiller
+
+kubectl apply -f - << "EOF"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: helm
+    name: tiller
+  name: tiller-deploy
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: helm
+      name: tiller
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: helm
+        name: tiller
+        app.kubernetes.io/name: tiller
+    spec:
+      automountServiceAccountToken: true
+      containers:
+      - env:
+        - name: TILLER_NAMESPACE
+          value: kube-system
+        - name: TILLER_HISTORY_MAX
+          value: "0"
+        image: gcr.io/kubernetes-helm/tiller:v2.14.3
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          httpGet:
+            path: /liveness
+            port: 44135
+          initialDelaySeconds: 1
+          timeoutSeconds: 1
+        name: tiller
+        ports:
+        - containerPort: 44134
+          name: tiller
+        - containerPort: 44135
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 44135
+          initialDelaySeconds: 1
+          timeoutSeconds: 1
+        resources: {}
+      serviceAccountName: tiller
+status: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: helm
+    name: tiller
+  name: tiller-deploy
+  namespace: kube-system
+spec:
+  ports:
+  - name: tiller
+    port: 44134
+    targetPort: tiller
+  selector:
+    app: helm
+    name: tiller
+  type: ClusterIP
+status:
+  loadBalancer: {}
+
+EOF
+    
     # wait for helm deploy
     kubectl -n kube-system  rollout status deploy/tiller-deploy
 

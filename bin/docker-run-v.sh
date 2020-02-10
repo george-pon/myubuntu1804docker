@@ -212,6 +212,7 @@ function f-docker-run-v() {
     local no_carry_on_proxy=
     # docker create secret docker-registry <name> --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
     local command_line_pass_mode=
+    local publish_port_opt=
 
     f-check-winpty 2>/dev/null
 
@@ -403,6 +404,12 @@ function f-docker-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"-p"x -o x"$1"x = x"--publish"x ]; then
+            publish_port_opt="$publish_port_opt $1 $2"
+            shift
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--command"x ]; then
             command_line_pass_mode=yes
             shift
@@ -433,6 +440,7 @@ function f-docker-run-v() {
             echo "        --memory value                set limits memory value for container"
             echo "        --runas  uid                  set runas user for container"
             echo "        --no-proxy                    do not set proxy environment variables for container"
+            echo "    -p, --publish port-list           Publish a container's port(s) to the host"
             echo ""
             echo "    ENVIRONMENT VARIABLES"
             echo "        DOCKER_RUN_V_IMAGE            set default image name"
@@ -494,6 +502,7 @@ function f-docker-run-v() {
             ${add_host_opt} \
             ${user_option} \
             ${memory_opt} \
+            ${publish_port_opt} \
             ${proxy_env_opt} \
             ${env_opts} \
             $image \
