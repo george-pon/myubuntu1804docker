@@ -371,6 +371,11 @@ function f-docker-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--image-node"x ]; then
+            image=registry.gitlab.com/george-pon/mynode:latest
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--docker-pull"x -o x"$1"x = x"--pull"x ]; then
             docker_pull=yes
             shift
@@ -424,6 +429,7 @@ function f-docker-run-v() {
             echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian9docker:latest"
             echo "        --image-alpine                set image to registry.gitlab.com/george-pon/myalpine3docker:latest"
             echo "        --image-raspi4                set image to registry.gitlab.com/george-pon/raspi4debian10:latest"
+            echo "        --image-node                  set image to registry.gitlab.com/george-pon/mynode:latest"
             echo "        --docker-pull                 docker pull image before docker run"
             echo "        --pull                        docker pull image before docker run"
             echo "        --timeout value               timeout value wait for running contaner"
