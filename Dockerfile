@@ -124,8 +124,8 @@ RUN curl -fLO https://github.com/garethr/kubetest/releases/download/$KUBETEST_VE
     cp kubetest /usr/local/bin && \
     /bin/rm kubetest-linux-amd64.tar.gz
 
-# install yamlsort
-ENV YAMLSORT_VERSION v0.1.16
+# install yamlsort see https://github.com/george-pon/yamlsort
+ENV YAMLSORT_VERSION v0.1.19
 RUN curl -fLO https://github.com/george-pon/yamlsort/releases/download/${YAMLSORT_VERSION}/linux_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz && \
     tar xzf linux_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz && \
     chmod +x linux_amd64_yamlsort && \

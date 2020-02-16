@@ -32,7 +32,7 @@ function f-download-kube-run-v-sh() {
 # yamlsortコマンドをダウンロードする
 function f-download-yamlsort-command() {
 
-    export YAMLSORT_VERSION=v0.1.16
+    export YAMLSORT_VERSION=v0.1.19
 
     # download yamlsort command
     local UNAMEO=$( uname -o )
@@ -43,9 +43,9 @@ function f-download-yamlsort-command() {
         fi
         curl -fLO https://github.com/george-pon/yamlsort/releases/download/${YAMLSORT_VERSION}/linux_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
         tar xvzf linux_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
-        mv windows_amd64_yamlsort yamlsort
+        mv linux_amd64_yamlsort yamlsort
         chmod +x yamlsort
-        rm windows_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
+        rm linux_amd64_yamlsort_${YAMLSORT_VERSION}.tar.gz
         ;;
     Msys)
         if [ -r yamlsort.exe ]; then
