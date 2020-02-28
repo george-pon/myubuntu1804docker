@@ -17,7 +17,7 @@ ENV LANG ja_JP.utf8
 # set timezone
 # humm. failed at GitLab CI.
 # RUN rm -f /etc/localtime ; ln -fs /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
-RUN rm /etc/localtime ; echo Asia/Tokyo > /etc/timezone ; dpkg-reconfigure -f noninteractive tzdata
+RUN rm -f /etc/localtime ; echo Asia/Tokyo > /etc/timezone ; dpkg-reconfigure -f noninteractive tzdata
 ENV TZ Asia/Tokyo
 
 # Do not exclude man pages & other documentation
