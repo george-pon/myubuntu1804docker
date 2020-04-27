@@ -49,16 +49,24 @@ function f-msys-escape() {
     if type uname 2>/dev/null 1>/dev/null ; then
         local result=$( uname -o )
         if [ x"$result"x = x"Cygwin"x ]; then
-            FSYS_FLAG=
+            MSYS_FLAG=
             # if not MSYS, normal return
             echo "$@"
             return 0
         fi
     fi
 
+    # check Msys
+    if type uname 2>/dev/null 1>/dev/null ; then
+        local result=$( uname -o )
+        if [ x"$result"x = x"Msys"x ]; then
+            MSYS_FLAG=true
+        fi
+    fi
+
     # check cmd is found
     if type cmd 2>/dev/null 1>/dev/null ; then
-        # check msys convert
+        # check msys convert ( Git for Windows )
         local result=$( cmd //c echo "/CN=Name")
         if [ x"$result"x = x"/CN=Name"x ]; then 
             MSYS_FLAG=
@@ -181,6 +189,26 @@ function f-check-kubeconfig-carry-on() {
     fi
 }
 
+# kubernetes 1.18 以降なら kubectl run --dry-run=client --output=json とする
+# kubernetes 1.18 以前なら kubectl run --dry-run
+function f-check-dry-run-pod() {
+    export KUBE_SERV_VERSION=$( f-kubernetes-server-version )
+    if [ -z "$KUBE_SERV_VERSION" ]; then
+        echo "no"
+        return
+    fi
+    local NOW_KUBE_SERV_VERSION=$( f-version-convert $KUBE_SERV_VERSION )
+    local CMP_KUBE_SERV_VERSION=$( f-version-convert "1.18.0" )
+    if [ $CMP_KUBE_SERV_VERSION -le $NOW_KUBE_SERV_VERSION ]; then
+        echo "yes"
+        return
+    else
+        echo "no"
+        return
+    fi
+}
+
+# kubernetes 1.18 では廃止された。
 # kubernetes 1.17 以降なら kubectl run --generator=run-pod/v1 とする yesを返却
 # kubernetes 1.16 以前なら kubectl run で良い no を返却
 function f-check-generator-run-pod() {
@@ -190,6 +218,11 @@ function f-check-generator-run-pod() {
         return
     fi
     local NOW_KUBE_SERV_VERSION=$( f-version-convert $KUBE_SERV_VERSION )
+    local CMP_KUBE_SERV_VERSION=$( f-version-convert "1.18.0" )
+    if [ $CMP_KUBE_SERV_VERSION -le $NOW_KUBE_SERV_VERSION ]; then
+        echo "no"
+        return
+    fi
     local CMP_KUBE_SERV_VERSION=$( f-version-convert "1.17.0" )
     if [ $CMP_KUBE_SERV_VERSION -le $NOW_KUBE_SERV_VERSION ]; then
         echo "yes"
@@ -720,6 +753,14 @@ function f-kube-run-v() {
         pseudo_volume_list="$pseudo_volume_list $carry_on_kubeconfig_file:~/.kube/config"
     fi
 
+    # check kubectl run dry-run optin
+    dry_run_result=$( f-check-dry-run-pod )
+    if [ x"$dry_run_result"x = x"yes"x ] ; then
+        dry_run_opt=" --dry-run=client -o yaml "
+    else
+        dry_run_opt=" --dry-run -o yaml "
+    fi
+
     # check kubectl run generator option
     generator_result=$( f-check-generator-run-pod )
     if [ x"$generator_result"x = x"yes"x ]; then
@@ -834,7 +875,13 @@ function f-kube-run-v() {
                 fi
             fi
         done
-        override_base_json=' { "apiVersion": "v1", "spec" : { '"${override_buff}"' } } '
+        if [ x"$override_buff"x = x""x ] ; then
+            override_opt=" --overrides "
+            override_base_json=
+        else
+            override_opt=" --overrides "
+            override_base_json=' { "apiVersion": "v1", "spec" : { '"${override_buff}"' } } '
+        fi
         local kubectl_proxy_env_opt=
         if [ -z "$no_carry_on_docker_host" ]; then
             kubectl_proxy_env_opt="${kubectl_proxy_env_opt}"' --env='"DOCKER_HOST=${DOCKER_HOST} "
@@ -842,22 +889,28 @@ function f-kube-run-v() {
         if [ -z "$no_carry_on_proxy" ]; then
             kubectl_proxy_env_opt="${kubectl_proxy_env_opt}"'--env='"http_proxy=${http_proxy}"' --env='"https_proxy=${https_proxy}"' --env='"ftp_proxy=${ftp_proxy}"' --env='"no_proxy=${no_proxy}"
         fi
+
         # echo "override_base_json is $override_base_json"
         if true ; then
             # dry run
             echo "  "
             echo "  ### dry-run : Pod yaml info start"
+            echo ""
+            set -x
             kubectl run ${generator_opt} ${POD_NAME} --restart=Never \
-                --overrides  "${override_base_json}" \
+                ${override_opt}  "${override_base_json}" \
                 --image=$image \
                 $imagePullOpt \
                 --serviceaccount=${serviceaccount} \
                 ${kubectl_cmd_namespace_opt} \
                 ${kubectl_proxy_env_opt} \
                 ${env_opts} \
-                --dry-run -o yaml \
-                --command -- tail -f $(  f-msys-escape '/dev/null' ) | awk '{print "  " $0;}'
-            RC=$? ; if [ $RC -ne 0 ]; then echo "kubectl dry-run error. abort." ; return $RC; fi
+                ${dry_run_opt} \
+                --command -- sleep 9999999
+            RC=$? 
+            set +x
+            if [ $RC -ne 0 ]; then echo "kubectl dry-run error. abort." ; return $RC; fi
+            echo ""
             echo "  ### dry-run : Pod yaml info end"
             echo "  "
         fi
@@ -869,16 +922,17 @@ function f-kube-run-v() {
         fi
 
         # run
+        set -x
         kubectl run ${generator_opt} ${POD_NAME} --restart=Never \
             --image=$image \
             $imagePullOpt \
-            --overrides  "${override_base_json}" \
+            ${override_opt}  "${override_base_json}" \
             --serviceaccount=${serviceaccount} \
             ${kubectl_cmd_namespace_opt} \
-            ${kubectl_proxy_env_opt} \
-            ${env_opts} \
-            --command -- tail -f $(  f-msys-escape '/dev/null' )
-        RC=$? ; if [ $RC -ne 0 ]; then echo "kubectl run error. abort." ; return $RC; fi
+            ${kubectl_proxy_env_opt}  ${env_opts} -- sleep 9999999
+        RC=$?
+        set +x
+        if [ $RC -ne 0 ]; then echo "kubectl run error. abort." ; return $RC; fi
 
         # wait for pod Running
         local count=0
@@ -1090,15 +1144,21 @@ function f-kube-run-v() {
     # exec into pod
     if [ ! -z "$i_or_tty" ]; then
         # interactive mode
+        echo "  # main command run"
         echo "  base workdir name : $pseudo_workdir"
         echo "  interactive mode"
-        echo "  ${WINPTY_CMD} kubectl exec ${interactive}  ${tty}  ${kubectl_cmd_namespace_opt} ${POD_NAME}  -- bash --login"
+        set -x
         ${WINPTY_CMD} kubectl exec ${interactive}  ${tty}  ${kubectl_cmd_namespace_opt} ${POD_NAME}  -- bash --login
+        RC=$?
+        set +x
     else
+        echo "  # main command run"
         echo "  base workdir name : $pseudo_workdir"
         echo "  running command : $command_line"
-        echo "  ${WINPTY_CMD} kubectl exec                         ${kubectl_cmd_namespace_opt} ${POD_NAME}  -- bash --login -c  $command_line"
+        set -x
         ${WINPTY_CMD} kubectl exec                         ${kubectl_cmd_namespace_opt} ${POD_NAME}  -- bash --login -c  "$command_line"
+        RC=$?
+        set +x
     fi
 
     # after pod exit
