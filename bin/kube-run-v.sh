@@ -1000,7 +1000,7 @@ function f-kube-run-v() {
             fi
 
             # kubectl cp
-            echo "  kubectl cp into pod"
+            echo "  kubectl cp into pod ${TMP_ARC_FILE}  ${TMP_DEST_MSYS2}"
             kubectl cp  ${kubectl_cmd_namespace_opt}  ${TMP_ARC_FILE}  ${TMP_DEST_MSYS2}
             RC=$? ; if [ $RC -ne 0 ]; then echo "kubectl cp error. abort." ; return $RC; fi
 

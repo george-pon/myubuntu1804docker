@@ -47,6 +47,8 @@ function f-ssh-run-v() {
     local NO_CARRY_ON=
     local NO_CARRY_OUT=
     local SSH_CMD_HOST=
+    local SSH_WITH_X=
+    local SSH_WITH_Y=
     # オプションチェック
     while [ $# -gt 0 ];
     do
@@ -56,6 +58,8 @@ function f-ssh-run-v() {
             echo "    --no-carry-on "
             echo "    --no-carry-out "
             echo "    --no-rsync "
+            echo "    -X"
+            echo "    -Y"
             return 0
         fi
         if [ x"$1"x = x"--no-carry-on"x ]; then
@@ -70,6 +74,16 @@ function f-ssh-run-v() {
         fi
         if [ x"$1"x = x"--no-rsync"x ]; then
             HAS_RSYNC_CMD=false
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"-X"x ]; then
+            SSH_WITH_X=" -X "
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"-Y"x ]; then
+            SSH_WITH_Y=" -Y "
             shift
             continue
         fi
@@ -153,7 +167,7 @@ function f-ssh-run-v() {
         set +x
     else
         # ssh でログイン (コマンドなし)
-        ssh $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT -tt  $SSH_CMD_HOST -- bash --rcfile $RC_FILE_NAME
+        ssh $SSH_WITH_X $SSH_WITH_Y $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT -tt  $SSH_CMD_HOST -- bash --rcfile $RC_FILE_NAME
     fi
 
     # ファイルの持ち出し実施
