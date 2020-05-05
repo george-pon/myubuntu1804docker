@@ -23,8 +23,8 @@ ENV TZ Asia/Tokyo
 # Do not exclude man pages & other documentation
 RUN rm /etc/dpkg/dpkg.cfg.d/excludes
 
-# re-install packages with manual
-RUN dpkg -l | grep ^ii | cut -d' ' -f3 | xargs apt install -y --reinstall && apt clean
+# re-install packages with manual (too slow)
+# RUN dpkg -l | grep ^ii | cut -d' ' -f3 | xargs apt install -y --reinstall && apt clean
 # install man pages
 RUN apt install -y man-db  manpages && apt clean
 
