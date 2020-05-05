@@ -7,20 +7,19 @@ ENV MYUBUNTU1804DOCKER_IMAGE myubuntu1804docker
 
 ENV DEBIAN_FRONTEND noninteractive
 
-# set locale
-RUN apt-get update && apt-get install -y locales && rm -rf /var/lib/apt/lists/* \
-    && localedef -i ja_JP -c -f UTF-8 -A /usr/share/locale/locale.alias ja_JP.UTF-8
-ENV LANG ja_JP.utf8
-
-# set locale
-#RUN apt update && \
-#    apt install -y locales  apt-transport-https  ca-certificates  language-pack-ja  software-properties-common && \
-#    localedef -i ja_JP -c -f UTF-8 -A /usr/share/locale/locale.alias ja_JP.UTF-8 && \
-#    apt clean
+# set locale (official)
+#RUN apt-get update && apt-get install -y locales && rm -rf /var/lib/apt/lists/* \
+#    && localedef -i ja_JP -c -f UTF-8 -A /usr/share/locale/locale.alias ja_JP.UTF-8
 #ENV LANG ja_JP.utf8
 
+# set locale
+RUN apt update && \
+    apt install -y locales  apt-transport-https  ca-certificates  language-pack-ja  software-properties-common && \
+    localedef -i ja_JP -c -f UTF-8 -A /usr/share/locale/locale.alias ja_JP.UTF-8
+ENV LANG ja_JP.utf8
+
 # set timezone
-# humm. failed at GitLab CI.
+# humm. failed at Git Hub CI.
 # RUN rm -f /etc/localtime ; ln -fs /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
 RUN apt update && apt install -y tzdata
 RUN rm -f /etc/localtime ; echo Asia/Tokyo > /etc/timezone ; dpkg-reconfigure -f noninteractive tzdata
