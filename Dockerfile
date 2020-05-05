@@ -8,15 +8,21 @@ ENV MYUBUNTU1804DOCKER_IMAGE myubuntu1804docker
 ENV DEBIAN_FRONTEND noninteractive
 
 # set locale
-RUN apt update && \
-    apt install -y locales  apt-transport-https  ca-certificates  language-pack-ja  software-properties-common && \
-    localedef -i ja_JP -c -f UTF-8 -A /usr/share/locale/locale.alias ja_JP.UTF-8 && \
-    apt clean
+RUN apt-get update && apt-get install -y locales && rm -rf /var/lib/apt/lists/* \
+    && localedef -i ja_JP -c -f UTF-8 -A /usr/share/locale/locale.alias ja_JP.UTF-8
 ENV LANG ja_JP.utf8
+
+# set locale
+#RUN apt update && \
+#    apt install -y locales  apt-transport-https  ca-certificates  language-pack-ja  software-properties-common && \
+#    localedef -i ja_JP -c -f UTF-8 -A /usr/share/locale/locale.alias ja_JP.UTF-8 && \
+#    apt clean
+#ENV LANG ja_JP.utf8
 
 # set timezone
 # humm. failed at GitLab CI.
 # RUN rm -f /etc/localtime ; ln -fs /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+RUN apt update && apt install -y tzdata
 RUN rm -f /etc/localtime ; echo Asia/Tokyo > /etc/timezone ; dpkg-reconfigure -f noninteractive tzdata
 ENV TZ Asia/Tokyo
 
@@ -62,12 +68,12 @@ RUN apt update && apt install -y --fix-missing \
         zip \
     && apt clean all
 
-# install docker client
-RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && \
-    add-apt-repository  "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && \
-    apt-get update && \
-    apt-get install -y docker-ce-cli containerd.io && \
-    apt-get clean all
+# install docker client ( 2020.05.05 not found ... )
+#RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && \
+#    add-apt-repository  "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && \
+#    apt-get update && \
+#    apt-get install -y docker-ce-cli containerd.io && \
+#    apt-get clean all
 
 # install docker-compose
 RUN apt-get install -y docker-compose && apt-get clean
