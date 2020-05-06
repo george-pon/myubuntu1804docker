@@ -352,7 +352,12 @@ function f-docker-run-v() {
             continue
         fi
         if [ x"$1"x = x"--image-debian"x ]; then
-            image=registry.gitlab.com/george-pon/mydebian9docker:latest
+            image=registry.gitlab.com/george-pon/mydebian10docker:latest
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--image-debian-builder"x ]; then
+            image=registry.gitlab.com/george-pon/mydebian10builder:latest
             shift
             continue
         fi
