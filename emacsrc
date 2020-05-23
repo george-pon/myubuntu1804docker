@@ -2,6 +2,10 @@
 ;; .emacs
 ;;
 
+;;disable splash screen and startup message
+(setq inhibit-startup-message t) 
+(setq initial-scratch-message nil)
+
 ;; ESC SPACE is set-mark-command
 (define-key global-map "\M- " 'set-mark-command)
 
