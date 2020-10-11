@@ -351,7 +351,22 @@ function f-docker-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--image-centos7"x ]; then
+            image=georgesan/mycentos7docker:latest
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--image-debian"x ]; then
+            image=registry.gitlab.com/george-pon/mydebian10docker:latest
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--image-debian9"x ]; then
+            image=registry.gitlab.com/george-pon/mydebian9docker:latest
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--image-debian10"x ]; then
             image=registry.gitlab.com/george-pon/mydebian10docker:latest
             shift
             continue
@@ -363,6 +378,16 @@ function f-docker-run-v() {
         fi
         if [ x"$1"x = x"--image-ubuntu"x ]; then
             image=georgesan/myubuntu1804docker:latest
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--image-ubuntu1804"x ]; then
+            image=georgesan/myubuntu1804docker:latest
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--image-ubuntu2004"x ]; then
+            image=georgesan/myubuntu2004docker:latest
             shift
             continue
         fi
@@ -378,6 +403,16 @@ function f-docker-run-v() {
         fi
         if [ x"$1"x = x"--image-node"x ]; then
             image=registry.gitlab.com/george-pon/mynode:latest
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--image-node12"x ]; then
+            image=registry.gitlab.com/george-pon/mynode:12
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--image-node13"x ]; then
+            image=registry.gitlab.com/george-pon/mynode:13
             shift
             continue
         fi
@@ -435,6 +470,8 @@ function f-docker-run-v() {
             echo "        --image-alpine                set image to registry.gitlab.com/george-pon/myalpine3docker:latest"
             echo "        --image-raspi4                set image to registry.gitlab.com/george-pon/raspi4debian10:latest"
             echo "        --image-node                  set image to registry.gitlab.com/george-pon/mynode:latest"
+            echo "        --image-node13                set image to registry.gitlab.com/george-pon/mynode:13"
+            echo "        --image-node12                set image to registry.gitlab.com/george-pon/mynode:12"
             echo "        --docker-pull                 docker pull image before docker run"
             echo "        --pull                        docker pull image before docker run"
             echo "        --timeout value               timeout value wait for running contaner"

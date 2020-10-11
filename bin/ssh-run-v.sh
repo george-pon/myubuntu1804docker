@@ -55,20 +55,35 @@ function f-ssh-run-v() {
         if [ x"$1"x = x"--help"x ]; then
             echo "ssh-run-v.sh  [options]  hostname"
             echo "    --help "
-            echo "    --no-carry-on "
-            echo "    --no-carry-out "
-            echo "    --no-rsync "
-            echo "    -X"
-            echo "    -Y"
+            echo "    --carry-on  (default) / --no-carry-on ... carry on current directory at ssh login"
+            echo "    --carry-out (default) / --no-carry-out ... carry out files at ssh logout"
+            echo "    --rsync (default) / --no-rsync ... use rsync command"
+            echo "    -X ... same as ssh -X (enables X11 forwarding)"
+            echo "    -Y ... same as ssh -Y (enables X11 forwarding)"
             return 0
+        fi
+        if [ x"$1"x = x"--no-carry"x ]; then
+            NO_CARRY_ON=
+            shift
+            continue
         fi
         if [ x"$1"x = x"--no-carry-on"x ]; then
             NO_CARRY_ON=true
             shift
             continue
         fi
+        if [ x"$1"x = x"--carry-out"x ]; then
+            NO_CARRY_OUT=
+            shift
+            continue
+        fi
         if [ x"$1"x = x"--no-carry-out"x ]; then
             NO_CARRY_OUT=true
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--rsync"x ]; then
+            HAS_RSYNC_CMD=true
             shift
             continue
         fi
