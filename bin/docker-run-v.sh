@@ -377,7 +377,7 @@ function f-docker-run-v() {
             continue
         fi
         if [ x"$1"x = x"--image-ubuntu"x ]; then
-            image=georgesan/myubuntu1804docker:latest
+            image=georgesan/myubuntu2004docker:latest
             shift
             continue
         fi
@@ -465,8 +465,8 @@ function f-docker-run-v() {
             echo "        --command                     after this option , arguments pass to docker exec command line"
             echo "        --image  image-name           set docker run image name. default is $image "
             echo "        --image-centos                set image to georgesan/mycentos7docker:latest (default)"
-            echo "        --image-ubuntu                set image to georgesan/myubuntu1804docker:latest"
-            echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian9docker:latest"
+            echo "        --image-ubuntu                set image to georgesan/myubuntu2004docker:latest"
+            echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian10docker:latest"
             echo "        --image-alpine                set image to registry.gitlab.com/george-pon/myalpine3docker:latest"
             echo "        --image-raspi4                set image to registry.gitlab.com/george-pon/raspi4debian10:latest"
             echo "        --image-node                  set image to registry.gitlab.com/george-pon/mynode:latest"
