@@ -208,8 +208,10 @@ function f-docker-run-v() {
     local pseudo_workdir=/$( basename $PWD )
     local workingdir=
     local pseudo_profile=
+    local pseudo_initfile=
     local volume_carry_out=true
     local no_carry_on_proxy=
+    local no_carry_on_docker_host=
     # docker create secret docker-registry <name> --docker-server=DOCKER_REGISTRY_SERVER --docker-username=DOCKER_USER --docker-password=DOCKER_PASSWORD --docker-email=DOCKER_EMAIL
     local command_line_pass_mode=
     local publish_port_opt=
@@ -270,9 +272,21 @@ function f-docker-run-v() {
         if [ x"$1"x = x"--source-profile"x ]; then
             pseudo_profile=$2
             if [ -r "$pseudo_profile" ] ; then 
-                echo "OK. pseudo_profile is readable." > /dev/null
+                echo "OK. pseudo_profile $pseudo_profile is readable." > /dev/null
             else
-                echo "OK. pseudo_profile is NOT readable. abort." > /dev/null
+                echo "ERROR. pseudo_profile $pseudo_profile is NOT readable. abort."
+                return 1
+            fi
+            shift
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--source-initfile"x ]; then
+            pseudo_initfile=$2
+            if [ -r "$pseudo_initfile" ] ; then 
+                echo "OK. pseudo_initfile $pseudo_initfile is readable." > /dev/null
+            else
+                echo "ERROR. pseudo_initfile $pseudo_initfile is NOT readable. abort."
                 return 1
             fi
             shift
@@ -449,6 +463,11 @@ function f-docker-run-v() {
             shift
             continue
         fi
+        if [ x"$1"x = x"--no-carry-on-docker-host"x -o x"$1"x = x"--no-docker-host"x ]; then
+            no_carry_on_docker_host=true
+            shift
+            continue
+        fi
         if [ x"$1"x = x"-p"x -o x"$1"x = x"--publish"x ]; then
             publish_port_opt="$publish_port_opt $1 $2"
             shift
@@ -484,10 +503,12 @@ function f-docker-run-v() {
             echo "    +v, ++volume                      stop automatic pseudo volume bind PWD to/from container."
             echo "        --read-only                   carry on volume files into container, but not carry out volume files from container"
             echo "    -w, --workdir pathname            set working directory (must be absolute path name)"
-            echo "        --source-profile file.sh      set pseudo profile shell name in workdir"
+            echo "        --source-profile profile.sh   set pseudo profile shell name in workdir"
+            echo "        --source-initfile file.sh     set pseudo initialize file shell name in workdir"
             echo "        --memory value                set limits memory value for container"
             echo "        --runas  uid                  set runas user for container"
-            echo "        --no-proxy                    do not set proxy environment variables for container"
+            echo "        --no-proxy                    do not set proxy environment variables to container"
+            echo "        --no-docker-host              do not set DOCKER_HOST environment variables to container"
             echo "    -p, --publish port-list           Publish a container's port(s) to the host"
             echo ""
             echo "    ENVIRONMENT VARIABLES"
@@ -541,7 +562,13 @@ function f-docker-run-v() {
     else
         local proxy_env_opt=
         if [ -z "$no_carry_on_proxy" ]; then
-            proxy_env_opt='--env='"http_proxy=${http_proxy}"' --env='"https_proxy=${https_proxy}"' --env='"no_proxy=${no_proxy}"' --env='"DOCKER_HOST=${DOCKER_HOST}"
+            proxy_env_opt='--env='"http_proxy=${http_proxy}"' --env='"https_proxy=${https_proxy}"' --env='"no_proxy=${no_proxy}"
+        fi
+        local docker_host_env_opt=
+        if [ -z "${no_carry_on_docker_host}" ] ; then
+            if [ -n "${DOCKER_HOST}" ] ; then
+                docker_host_env_opt=' --env='"DOCKER_HOST=${DOCKER_HOST}"
+            fi
         fi
 
         # docker run
@@ -552,6 +579,7 @@ function f-docker-run-v() {
             ${memory_opt} \
             ${publish_port_opt} \
             ${proxy_env_opt} \
+            ${docker_host_env_opt} \
             ${env_opts} \
             $image \
             tail -f $(  f-msys-escape '/dev/null' )
@@ -653,6 +681,12 @@ function f-docker-run-v() {
         # docker exec ... set profile
         docker exec ${container_name} bash -c " mkdir -p /etc/profile.d "
         docker exec ${container_name} bash -c " echo source $pseudo_profile >> /etc/profile.d/workdir.sh "
+    fi
+
+    if [ ! -z "$pseudo_initfile" ]; then
+        # docker exec ... set profile
+        docker exec ${container_name} bash -c " mkdir -p /etc/profile.d "
+        docker exec ${container_name} bash -c " echo source $pseudo_initfile >> /etc/profile.d/workdir.sh "
     fi
 
     # create recover shell , when terminal is suddenly gone.

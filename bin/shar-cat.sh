@@ -19,6 +19,10 @@ function f_is_text_file() {
         return 0
     elif echo $fileType | grep text/html > /dev/null ; then
         return 0
+    elif echo $fileType | grep "text/xml" > /dev/null ; then
+        return 0
+    elif echo $fileType | grep "application/json" > /dev/null ; then
+        return 0
     fi
     return 1
 }
