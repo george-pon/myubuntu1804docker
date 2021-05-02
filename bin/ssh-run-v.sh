@@ -49,6 +49,7 @@ function f-ssh-run-v() {
     local SSH_CMD_HOST=
     local SSH_WITH_X=
     local SSH_WITH_Y=
+    local ADD_RCFILE_LINE=
     # オプションチェック
     while [ $# -gt 0 ];
     do
@@ -60,6 +61,7 @@ function f-ssh-run-v() {
             echo "    --rsync (default) / --no-rsync ... use rsync command"
             echo "    -X ... same as ssh -X (enables X11 forwarding)"
             echo "    -Y ... same as ssh -Y (enables X11 forwarding)"
+            echo "    --add-rcfile-line "'"export $(printf "%q" "VAR=VALUE")"'" ... append rcfile some command"
             return 0
         fi
         if [ x"$1"x = x"--no-carry"x ]; then
@@ -99,6 +101,12 @@ function f-ssh-run-v() {
         fi
         if [ x"$1"x = x"-Y"x ]; then
             SSH_WITH_Y=" -Y "
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--add-rcfile-line"x ]; then
+            ADD_RCFILE_LINE="$2"
+            shift
             shift
             continue
         fi
@@ -169,6 +177,8 @@ function f-ssh-run-v() {
     echo "#!/bin/bash" > $RC_FILE_PATH
     echo 'source ~/.bashrc' >> $RC_FILE_PATH
     echo "cd $CURRENT_DIR_NAME" >> $RC_FILE_PATH
+    echo "" >> $RC_FILE_PATH
+    echo "$ADD_RCFILE_LINE" >> $RC_FILE_PATH
     echo "" >> $RC_FILE_PATH
     scp $SSH_CMD_CONFIG_OPT $SSH_CMD_COMMON_OPT $RC_FILE_PATH  $SSH_CMD_HOST:$RC_FILE_NAME
     RC=$? ; if [ $RC -ne 0 ]; then echo "error. abort." ; return 1; fi

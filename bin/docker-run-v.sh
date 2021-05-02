@@ -486,6 +486,7 @@ function f-docker-run-v() {
             echo "        --image-centos                set image to georgesan/mycentos7docker:latest (default)"
             echo "        --image-ubuntu                set image to georgesan/myubuntu2004docker:latest"
             echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian10docker:latest"
+            echo "        --image-debian-builder        set image to registry.gitlab.com/george-pon/mydebian10builder:latest"
             echo "        --image-alpine                set image to registry.gitlab.com/george-pon/myalpine3docker:latest"
             echo "        --image-raspi4                set image to registry.gitlab.com/george-pon/raspi4debian10:latest"
             echo "        --image-node                  set image to registry.gitlab.com/george-pon/mynode:latest"
