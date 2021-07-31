@@ -69,13 +69,16 @@ function git-initialize() {
     # gitの認証情報を保存する
     git config --global credential.helper store
 
-    # ファイル名の大文字小文字の変動を追尾する
-    # これはリポジトリ毎設定なのでここでは実行しない
-    # git config core.ignorecase false
+    # git ver 2.0 以降では simple がデフォルト
+    git config --global push.default simple
 
-    # git pull した時の戦略。マージする。(rebaseはしない)(各gitリポジトリ内で実施)
+    # 各リポジトリの中で実施するコマンド
     if [ -d .git ] ; then
+        # git pull した時の戦略。マージする。(rebaseはしない)(各gitリポジトリ内で実施)
         git config pull.rebase false
+
+        # ファイル名の大文字小文字の変動を追尾する
+        # git config core.ignorecase false
     fi
 
 }
@@ -126,11 +129,11 @@ function git-branch-clean-all() {
         # カレントブランチがdirtyではなく、developまたはmasterの場合は、git pullを行う
         STATUS=$( git status | grep "nothing to commit" )
         if [ ! -z "$STATUS" ]; then
-            if [ x"$CUR_BRANCH"x = x"master"x -o x"$CUR_BRANCH"x = x"develop"x ]; then
+            if [ x"$CUR_BRANCH"x = x"master"x -o x"$CUR_BRANCH"x = x"develop"x -o x"$CUR_BRANCH"x = x"main"x ]; then
                 f_git pull
                 RC=$? ; if [ $RC -ne 0 ]; then return 1; fi
             else
-                echo "workspace is not master nor develop branch.  skip git pull."
+                echo "workspace is not master, develop, main branch.  skip git pull."
             fi
         else
             echo "workspace is durty.  skip git pull."
