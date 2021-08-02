@@ -203,6 +203,7 @@ function f-docker-run-v() {
     local pseudo_volume_list=
     local pseudo_volume_left=
     local pseudo_volume_right=
+    local real_volume_opt=
     local add_host_opt=
     local docker_pull=
     local pseudo_workdir=/$( basename $PWD )
@@ -351,6 +352,11 @@ function f-docker-run-v() {
         fi
         if [ x"$1"x = x"+v"x -o x"$1"x = x"++volume"x -o x"$1"x = x"--no-volume"x ]; then
             pseudo_volume_bind=
+            shift
+            continue
+        fi
+        if [ x"$1"x = x"--real-volume"x ]; then
+            real_volume_opt="$real_volume_opt --volume $2 "
             shift
             continue
         fi
@@ -503,6 +509,7 @@ function f-docker-run-v() {
             echo "    -v, --volume hostpath:destpath    pseudo volume bind (copy current directory) to/from container."
             echo "    +v, ++volume                      stop automatic pseudo volume bind PWD to/from container."
             echo "        --read-only                   carry on volume files into container, but not carry out volume files from container"
+            echo "        --real-volume hostpath:destpath    direct volume bind to/from container. example /var/run/docker.sock:/var/run/docker.sock "
             echo "    -w, --workdir pathname            set working directory (must be absolute path name)"
             echo "        --source-profile profile.sh   set pseudo profile shell name in workdir"
             echo "        --source-initfile file.sh     set pseudo initialize file shell name in workdir"
@@ -582,6 +589,7 @@ function f-docker-run-v() {
             ${proxy_env_opt} \
             ${docker_host_env_opt} \
             ${env_opts} \
+            ${real_volume_opt} \
             $image \
             tail -f $(  f-msys-escape '/dev/null' )
         RC=$? ; if [ $RC -ne 0 ]; then echo "docker run error. abort." ; return $RC; fi
