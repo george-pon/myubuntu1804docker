@@ -358,6 +358,7 @@ function f-docker-run-v() {
         if [ x"$1"x = x"--real-volume"x ]; then
             real_volume_opt="$real_volume_opt --volume $2 "
             shift
+            shift
             continue
         fi
         if [ x"$1"x = x"--image"x ]; then
