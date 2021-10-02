@@ -151,6 +151,13 @@ function f-kubernetes-server-version() {
     echo $RESULT
 }
 
+# kubernetes client version文字列(1.11.6)をechoする
+# k3s環境だと1.14.1-k3s.4なので、-k3s.4の部分はカットする
+function f-kubernetes-client-version() {
+    local RESULT=$( kubectl version | grep "Client Version" | sed -e 's/^.*GitVersion://g' -e 's/, GitCommit.*$//g' -e 's/"//g' -e 's/^v//g' -e 's/-.*$//g' )
+    echo $RESULT
+}
+
 # kubernetes version 文字列(1.11.6)を比較する
 # ピリオド毎に4桁の整数(000100110006)に変換してechoする
 function f-version-convert() {
@@ -233,6 +240,24 @@ function f-check-generator-run-pod() {
     fi
 }
 
+# kubectl run --serviceaccount オプションの判定
+# kubernetes 1.21 ではdeprecatedになった。
+function f-check-run-pod-serviceaccount() {
+    export KUBE_SERV_VERSION=$( f-kubernetes-client-version )
+    if [ -z "$KUBE_SERV_VERSION" ]; then
+        echo "no"
+        return
+    fi
+    local NOW_KUBE_SERV_VERSION=$( f-version-convert $KUBE_SERV_VERSION )
+    local CMP_KUBE_SERV_VERSION=$( f-version-convert "1.21.0" )
+    if [ $CMP_KUBE_SERV_VERSION -le $NOW_KUBE_SERV_VERSION ]; then
+        echo "no"
+        return
+    fi
+    echo "yes"
+    return
+}
+
 #
 # 自作イメージを起動して、カレントディレクトリのファイル内容をPod内部に持ち込む
 #   for kubernetes  ( Linux Bash or Git-Bash for Windows MSYS2 )
@@ -288,6 +313,8 @@ function f-kube-run-v() {
 
     local namespace=
     local serviceaccount=
+    local kubectl_run_opt_serviceaccount=
+    local serviceaccount_json=
     local kubectl_cmd_namespace_opt=
     local interactive=
     local tty=
@@ -753,6 +780,13 @@ function f-kube-run-v() {
     fi
     if [ -z "$serviceaccount" ]; then
         serviceaccount="mycentos7docker-${namespace}"
+        chk=$( f-check-run-pod-serviceaccount )
+        if [ x"$chk"x = x"yes"x ] ; then
+            echo "  f-check-run-pod-serviceaccount result is $chk"
+            kubectl_run_opt_serviceaccount="--serviceaccount=${serviceaccount}"
+        else
+            serviceaccount_json=' "serviceAccountName": "'${serviceaccount}'" '
+        fi
     fi
     if [ -z "$pod_name_prefix" ]; then
         pod_name_prefix=${image##*/}
@@ -907,7 +941,7 @@ function f-kube-run-v() {
         if [ -n "$hostpath_volumes_json" ]; then
             volumes_elem=" \"volumes\" : [ $hostpath_volumes_json ] "
         fi
-        for override_elem in "$runas_option_json" "$image_pull_secrets_json" "$node_select_json" "$workingdir_json" "$volumes_elem"
+        for override_elem in "$runas_option_json" "$image_pull_secrets_json" "$node_select_json" "$workingdir_json" "$volumes_elem" "$serviceaccount_json"
         do
             if [ -n "$override_elem" ]; then
                 if [ -z "$override_buff" ]; then
@@ -943,7 +977,7 @@ function f-kube-run-v() {
                 ${override_opt}  "${override_base_json}" \
                 --image=$image \
                 $imagePullOpt \
-                --serviceaccount=${serviceaccount} \
+                ${kubectl_run_opt_serviceaccount} \
                 ${kubectl_cmd_namespace_opt} \
                 ${kubectl_proxy_env_opt} \
                 ${env_opts} \
@@ -969,7 +1003,7 @@ function f-kube-run-v() {
             --image=$image \
             $imagePullOpt \
             ${override_opt}  "${override_base_json}" \
-            --serviceaccount=${serviceaccount} \
+            ${kubectl_run_opt_serviceaccount} \
             ${kubectl_cmd_namespace_opt} \
             ${kubectl_proxy_env_opt}  ${env_opts} -- sleep 9999999
         RC=$?
