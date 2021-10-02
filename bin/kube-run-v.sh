@@ -319,7 +319,7 @@ function f-kube-run-v() {
     local interactive=
     local tty=
     local i_or_tty=
-    local image=georgesan/mycentos7docker:latest
+    local image=registry.gitlab.com/george-pon/mydebian10docker:latest
     local pod_name_prefix=
     local pod_timeout=600
     local imagePullOpt=
@@ -715,9 +715,9 @@ function f-kube-run-v() {
             echo "    -n, --namespace  namespace        set kubectl run namespace"
             echo "        --command                     after this option , arguments pass to kubectl exec command line"
             echo "        --image  image-name           set kubectl run image name. default is $image "
-            echo "        --image-centos                set image to georgesan/mycentos7docker:latest (default)"
+            echo "        --image-centos                set image to georgesan/mycentos7docker:latest"
             echo "        --image-ubuntu                set image to georgesan/myubuntu1804docker:latest"
-            echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian9docker:latest"
+            echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian10docker:latest  (default)"
             echo "        --image-alpine                set image to registry.gitlab.com/george-pon/myalpine3docker:latest"
             echo "        --image-raspi4                set image to registry.gitlab.com/george-pon/raspi4debian10:latest"
             echo "        --image-node                  set image to registry.gitlab.com/george-pon/mynode:latest"

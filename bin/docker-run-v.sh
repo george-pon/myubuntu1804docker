@@ -192,7 +192,7 @@ function f-docker-run-v() {
     local interactive=
     local tty=
     local i_or_tty=
-    local image=georgesan/mycentos7docker:latest
+    local image=registry.gitlab.com/george-pon/mydebian10docker:latest
     local container_name_prefix=
     local container_timeout=600
     local command_line=
@@ -490,9 +490,9 @@ function f-docker-run-v() {
             echo "docker-run-v"
             echo "        --command                     after this option , arguments pass to docker exec command line"
             echo "        --image  image-name           set docker run image name. default is $image "
-            echo "        --image-centos                set image to georgesan/mycentos7docker:latest (default)"
+            echo "        --image-centos                set image to georgesan/mycentos7docker:latest"
             echo "        --image-ubuntu                set image to georgesan/myubuntu2004docker:latest"
-            echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian10docker:latest"
+            echo "        --image-debian                set image to registry.gitlab.com/george-pon/mydebian10docker:latest (default)"
             echo "        --image-debian-builder        set image to registry.gitlab.com/george-pon/mydebian10builder:latest"
             echo "        --image-alpine                set image to registry.gitlab.com/george-pon/myalpine3docker:latest"
             echo "        --image-raspi4                set image to registry.gitlab.com/george-pon/raspi4debian10:latest"
